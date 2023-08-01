@@ -1,0 +1,12 @@
+<?php
+/**
+ * Copyright © Magento, Inc. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+
+/** @var PagBank\PaymentMagento\Block\Sales\Form\CreditCard|Template $block */
+?>
+<input
+                            name="pagbank_public_key"
+                            value="<?= /* @noEscape */ $block->getPublicKey() ?>"
+                            type="hidden"/>

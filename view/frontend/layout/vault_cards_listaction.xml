@@ -13,7 +13,10 @@
     <body>
         <referenceContainer name="content">
             <referenceBlock name="vault.cards.list">
-                <block class="PagBank\PaymentMagento\Block\Customer\CardRenderer" name="pagbank.card.renderer" template="Magento_Vault::customer_account/credit_card.phtml"/>
+                <block class="PagBank\PaymentMagento\Block\Customer\CardRenderer" name="pagbank.card.renderer" template="PagBank_PaymentMagento::customer_account/credit_card.phtml">
+                    <block class="PagBank\PaymentMagento\Block\Sales\Form\CreditCard" name="pagbank.public" as="pagbank.public" template="PagBank_PaymentMagento::customer_account/public_key.phtml">
+                    </block>
+                </block>
             </referenceBlock>
         </referenceContainer>
     </body>

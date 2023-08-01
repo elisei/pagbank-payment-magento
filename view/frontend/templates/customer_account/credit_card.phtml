@@ -1,0 +1,142 @@
+<?php
+/**
+ * Copyright © Magento, Inc. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+use Magento\Framework\View\Element\Template;
+use Magento\Vault\Api\Data\PaymentTokenInterface;
+use Magento\Vault\Block\CardRendererInterface;
+
+/** @var CardRendererInterface|Template $block */
+
+$ccNumberView = $block->escapeHtml($block->getNumberLast4Digits());
+$code = $ccNumberView;
+?>
+<tr>
+    <td data-th="<?= $block->escapeHtml(__('Card Number')) ?>" class="col card-number">
+        <span><?= $block->escapeHtml(__('ending')) ?></span> <?= /* @noEscape */ $ccNumberView ?>
+    </td>
+    <td data-th="<?= $block->escapeHtml(__('Expiration Date')) ?>" class="col card-expire">
+        <?= $block->escapeHtml($block->getExpDate()) ?>
+    </td>
+    <td data-th="<?= $block->escapeHtml(__('Type')) ?>" class="col card-type">
+        <img src="<?= /* @noEscape */ $block->getIconUrl() ?>"
+             width="<?= /* @noEscape */ $block->getIconWidth() ?>"
+             height="<?= /* @noEscape */ $block->getIconHeight() ?>"
+        >
+    </td>
+    <td data-th="<?= $block->escapeHtml(__('Actions')) ?>" class="col actions">
+        <form
+            class="form"
+            action="<?= $block->escapeUrl($block->getUrl('vault/cards/deleteaction')) ?>"
+            method="post"
+            >
+            <?= $block->getBlockHtml('formkey') ?>
+            <input
+                name="<?= /* @noEscape */ PaymentTokenInterface::PUBLIC_HASH ?>"
+                value="<?= /* @noEscape */ $block->getToken()->getPublicHash() ?>"
+                type="hidden"/>
+            <button type="submit"
+                    class="action delete"
+                    data-mage-init='{
+                                    "Magento_Vault/js/customer_account/deleteWidget":{
+                                        "type": "popup",
+                                        "modalClass": "my-credit-cards-popup",
+                                        "toggleEvent": "click",
+                                        "title": "<?= $block->escapeHtml(__('Delete')) ?>",
+                                        "content": "<?= $block->escapeHtml(__('Are you sure you want to delete this card: %1?', $ccNumberView)) ?>"
+                                    }
+                                }'>
+                <span><?= $block->escapeHtml(__('Delete')) ?></span>
+            </button>
+        </form>
+
+        <form
+            class="form"
+            id="update_vault_<?= /* @noEscape */ $code ?>"
+            action="<?= $block->escapeUrl($block->getUrl('pagbank/cards/update')) ?>"
+            method="post"
+            >
+            <button type="button" class="action update" data-trigger="trigger">
+                <span><?= $block->escapeHtml(__('Update')) ?></span>
+            </button>
+            <div data-mage-init='{
+                    "PagBank_PaymentMagento/js/view/customer_account/vaultUpdateWidget":{
+                        "type": "popup",
+                        "modalClass": "my-credit-cards-popup",
+                        "toggleEvent": "click",
+                        "formId": "update_vault_<?= /* @noEscape */ $code ?>",
+                        "cardId": "<?= /* @noEscape */ $code ?>",
+                        "trigger": "[data-trigger=trigger]",
+                        "title": "<?= $block->escapeHtml(__('Update card %1', $ccNumberView)) ?>",
+                        "responsive": "true"
+                    }
+                }'>
+                <div class="content">
+                    <fieldset class="fieldset payment items ccard <?= /* @noEscape */ $code ?>"
+                        id="payment_form_<?= /* @noEscape */ $code ?>">
+                        <?= $block->getBlockHtml('formkey') ?>
+                        <?= $block->getChildHtml('pagbank.public') ?>
+                        <input
+                            name="<?= /* @noEscape */ PaymentTokenInterface::PUBLIC_HASH ?>"
+                            value="<?= /* @noEscape */ $block->getToken()->getPublicHash() ?>"
+                            type="hidden"/>
+                        <div class="field number required">
+                            <label for="<?= /* @noEscape */ $code ?>_cc_number" class="label">
+                                <span><?= $block->escapeHtml(__('Credit Card Number')) ?></span>
+                            </label>
+                            <div class="control">
+                                <input type="tel" id="<?= /* @noEscape */ $code ?>_cc_number"
+                                    title="<?= $block->escapeHtml(__('Credit Card Number')) ?>"
+                                    class="input-text" value="4747 4747 4747 4747"/>
+                            </div>
+                        </div>
+                        <div class="field date required" id="<?= /* @noEscape */ $code ?>_cc_type_exp_div">
+                            <label for="<?= /* @noEscape */ $code ?>_expiration" class="label">
+                                <span><?= $block->escapeHtml(__('Expiration Date')) ?></span>
+                            </label>
+                            <div class="control">
+                                <div class="fields group group-2">
+                                    <div class="field no-label month">
+                                        <div class="control">
+                                            <select id="<?= /* @noEscape */ $code ?>_expiration"
+                                                    class="select month">
+                                                <?php foreach ($block->getMonths() as $k => $v): ?>
+                                                    <option value="<?= /* @noEscape */ $k ? $block->escapeHtml($k) : '' ?>">
+                                                        <?= $block->escapeHtml($v) ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="field no-label year">
+                                        <div class="control">
+                                            <select id="<?= /* @noEscape */ $code ?>_expiration_yr"
+                                                    class="select year">
+                                                <?php foreach ($block->getYears() as $k => $v): ?>
+                                                    <option value="<?= /* @noEscape */ $k ? $block->escapeHtml($k) : '' ?>">
+                                                        <?= $block->escapeHtml($v) ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field owner required">
+                            <label for="<?= /* @noEscape */ $code ?>_cc_owner" class="label">
+                                <span><?= $block->escapeHtml(__('Holder Name')) ?></span>
+                            </label>
+                            <div class="control">
+                                <input type="text" id="<?= /* @noEscape */ $code ?>_cc_owner"
+                                    class="input-text" value="Bruno Elisei" >
+                                </input>                               
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+        </form>
+    </td>
+</tr>

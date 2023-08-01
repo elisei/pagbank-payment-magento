@@ -16,6 +16,8 @@ use PagBank\PaymentMagento\Model\Ui\ConfigProviderBase;
 
 class CardRenderer extends AbstractCardRenderer
 {
+    public const YEARS_RANGE = 10;
+
     /**
      * Can render specified token.
      *
@@ -76,5 +78,35 @@ class CardRenderer extends AbstractCardRenderer
     public function getIconWidth(): int
     {
         return $this->getIconForType($this->getTokenDetails()['cc_type'])['width'];
+    }
+
+    /**
+     * Retrieve list of months translation
+     *
+     * @return array
+     */
+    public function getMonths()
+    {
+        $data = [];
+        for ($index = 1; $index <= 12; $index++) {
+            $data[$index] = $index;
+        }
+        return $data;
+    }
+
+    /**
+     * Retrieve array of available years
+     *
+     * @return array
+     */
+    public function getYears()
+    {
+        $years = [];
+        $first = (int)date("Y");
+        for ($index = 0; $index <= self::YEARS_RANGE; $index++) {
+            $year = $first + $index;
+            $years[$year] = $year;
+        }
+        return $years;
     }
 }

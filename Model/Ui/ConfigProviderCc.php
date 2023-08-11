@@ -114,6 +114,11 @@ class ConfigProviderCc implements ConfigProviderInterface
                     'phone_capture'        => $this->configCc->hasPhoneCapture($storeId),
                     'public_key'           => $this->configBase->getMerchantGatewayPublicKey($storeId),
                     'ccVaultCode'          => self::VAULT_CODE,
+                    'threeDs'              => [
+                        'env'    => $this->configCc->getThreeDsEnv($storeId),
+                        'active' => $this->configCc->hasThreeDsAuth($storeId),
+                        'reject' => $this->configCc->hasRejectNotAuth($storeId),
+                    ],
                 ],
             ],
         ];

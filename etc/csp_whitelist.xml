@@ -35,6 +35,7 @@
                 <value id="cardinal_commerce_cent_stag" type="host">centinelapistag.cardinalcommerce.com</value>
                 <value id="cardinal_commerce_cent" type="host">centinelapi.cardinalcommerce.com</value>
                 <value id="cardinal_commerce_songbird" type="host">songbird.cardinalcommerce.com</value>
+                <value id="open_fp_cdn" type="host">openfpcdn.io</value>
             </values>
         </policy>
         <policy id="frame-src">

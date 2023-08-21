@@ -11,15 +11,51 @@
 define([
     'underscore',
     'jquery',
-    'Magento_Checkout/js/model/quote'
+    'Magento_Checkout/js/model/quote',
+    'mage/translate',
+    'Magento_Ui/js/modal/confirm',
+    'Magento_Checkout/js/model/full-screen-loader'
 ], function (
     _,
     $,
-    quote
+    quote,
+    $t,
+    confirmation,
+    fullScreenLoader
 ) {
     'use strict';
 
     return {
+
+        /**
+         * Challenge Instruction
+         * @param {Object} challenge
+         */
+        challengeInstruction(challenge) {
+            let instruction = window.checkoutConfig.payment['pagbank_paymentmagento_cc'].threeDs.instruction,
+                ccBrand = challenge.brand.charAt(0).toUpperCase() + challenge.brand.slice(1),
+                ccIssuer = challenge.issuer ? challenge.issuer.toUpperCase() : $t('card issuer'),
+                content = instruction.replace('%1', ccBrand).replace('%2', ccIssuer);
+
+            fullScreenLoader.stopLoader(true);
+            confirmation({
+                title: $t('Verification of data'),
+                content: content,
+                buttons: [{
+                    text: $t('Confirm my data'),
+                    class: 'action-primary action-accept'
+                }],
+                closed: () => {
+                    fullScreenLoader.startLoader(true);
+                    challenge.open();
+                },
+                confirm: () => {
+                    fullScreenLoader.startLoader(true);
+                    challenge.open();
+                }
+            });
+        },
+
         /**
          * Get CountryIsoAlpha3
          * @param {String} countryIsoAlpha2
@@ -70,7 +106,7 @@ define([
         getPreOrderData(
             cardPayData
         ) {
-            var totalAmount = parseFloat(quote.totals()['base_grand_total']).toFixed(2) * 100,
+            var totalAmount = parseFloat(quote.totals()['base_grand_total']) * 100,
                 customerEmail = quote.guestEmail ? quote.guestEmail : window.checkoutConfig.customerData.email,
                 billingAddress = quote.billingAddress(),
                 shippingAddress = quote.isVirtual() ? quote.billingAddress() : quote.shippingAddress(),
@@ -89,7 +125,7 @@ define([
                         },
                         paymentMethod: cardPayData,
                         amount: {
-                            value: totalAmount,
+                            value: totalAmount.toFixed(0),
                             currency: currencyCode
                         },
                         billingAddress: {
@@ -111,7 +147,8 @@ define([
                             postalCode: zipShipping
                         },
                         dataOnly: false
-                    }
+                    },
+                    beforeChallenge: this.challengeInstruction
                 };
 
             return request;

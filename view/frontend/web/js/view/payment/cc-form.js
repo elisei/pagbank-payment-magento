@@ -37,14 +37,14 @@ define([
 
     return Component.extend({
         defaults: {
-            creditCardNumber: '4806 3201 5096 4419',
-            creditCardVerificationNumber: '149',
-            creditCardType: 'VI',
-            creditCardExpYear: '2028',
-            creditCardExpMonth: '6',
-            creditCardHolderName: 'Bruno Elisei',
-            creditCardInstallment: '1',
-            selectedCardType: 'VI',
+            creditCardNumber: '',
+            creditCardVerificationNumber: '',
+            creditCardType: '',
+            creditCardExpYear: '',
+            creditCardExpMonth: '',
+            creditCardHolderName: '',
+            creditCardInstallment: '',
+            selectedCardType: '',
             creditCardOptionsInstallments: null
         },
         totals: quote.getTotals(),

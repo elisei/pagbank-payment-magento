@@ -79,6 +79,11 @@ class ConfigCc extends PaymentConfig
     public const REJECT_NOT_AUTH = 'reject_not_auth';
 
     /**
+     * @const string
+     */
+    public const INSTRUCTION_THREE_DS = 'instruction_three_ds';
+
+    /**
      * @var ScopeConfigInterface
      */
     protected $scopeConfig;
@@ -206,6 +211,24 @@ class ConfigCc extends PaymentConfig
 
         return (bool) $this->scopeConfig->getValue(
             sprintf($pathPattern, self::METHOD, self::USE_THREE_DS_AUTH),
+            ScopeInterface::SCOPE_STORE,
+            $storeId
+        );
+    }
+
+    /**
+     * Get Instruction for 3ds.
+     *
+     * @param string|null $storeId
+     *
+     * @return string
+     */
+    public function getInstructionForThreeDs($storeId = null): string
+    {
+        $pathPattern = 'payment/%s/%s';
+
+        return $this->scopeConfig->getValue(
+            sprintf($pathPattern, self::METHOD, self::INSTRUCTION_THREE_DS),
             ScopeInterface::SCOPE_STORE,
             $storeId
         );

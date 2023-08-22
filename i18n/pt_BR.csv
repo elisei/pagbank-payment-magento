@@ -168,6 +168,7 @@ Title,Título
 "Credit Card Types","Cartões de Crédito Permitidos"
 "3D Secure","3D Secure"
 "3D Secure configuration.","3D Secure configuração."
+"Authorization is required to use this service. Please get in touch with PagBank for further assistance.","Para utilizar esse serviço você precisa de autorização. Por favor entre em contato com a PagBank."
 "Reject payment not authenticated","Rejeitar pagamentos não autenticados"
 "Instruction before challenge","Instrução antes do desafio"
 "%1 and %2 are two variables, they will be replaced by the card's flag and the issuer bank's name, respectively.","%1 e %2 são duas variáveis que serão substituídas pela bandeira do cartão e pelo nome do banco emissor, respectivamente."

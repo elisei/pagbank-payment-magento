@@ -95,7 +95,9 @@
 
 Para isso, uma nova tela será aberta, onde você precisará seguir as instruções passo a passo fornecidas pelo banco emissor do seu cartão.
 
-Você autenticará suas informações diretamente com <b>%2</b>. Este é o processo de autenticação 3DS, um processo seguro, como você pode verificar diretamente com o seu banco.]]></instruction_three_ds>
+Você autenticará suas informações diretamente com <b>%2</b>.
+
+Este é o processo de autenticação 3DS, um processo seguro, como você pode verificar diretamente com o seu banco.]]></instruction_three_ds>
             </pagbank_paymentmagento_cc>
             <pagbank_paymentmagento_cc_vault>
                 <group>pagbank_group</group>

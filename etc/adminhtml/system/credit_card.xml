@@ -40,10 +40,11 @@
         <group id="three_ds" translate="label comment" type="text" sortOrder="100" showInDefault="1" showInWebsite="1" showInStore="1">
             <label>3D Secure</label>
             <comment>3D Secure configuration.</comment>
-            <field id="active" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+            <field id="active" translate="label comment" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                 <label>Enabled</label>
                 <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 <config_path>payment/pagbank_paymentmagento_cc/use_three_ds</config_path>
+                <comment>Authorization is required to use this service. Please get in touch with PagBank for further assistance.</comment>
             </field>
             <field id="reject_not_auth" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
                 <label>Reject payment not authenticated</label>

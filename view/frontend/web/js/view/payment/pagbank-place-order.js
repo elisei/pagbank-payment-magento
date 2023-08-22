@@ -41,7 +41,6 @@ define([
             self._super();
         },
 
-
         /**
          * Get PagBank Place
          * @param {Object} context
@@ -221,13 +220,13 @@ define([
             }
 
             if (authStatus === 'CHANGE_PAYMENT_METHOD') {
-                self.showError('Change Payment Method');
+                self.showError($t('Change Payment Method'));
                 return false;
             }
 
             if (authStatus === 'AUTH_FLOW_COMPLETED' && reject) {
                 if (authenticationStatus === 'NOT_AUTHENTICATED') {
-                    self.showError('Change Payment Method');
+                    self.showError($t('Change Payment Method'));
                     return false;
                 }
                 return authenticationStatus === 'AUTHENTICATED';

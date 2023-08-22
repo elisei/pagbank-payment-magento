@@ -130,6 +130,7 @@ expires,expires
 "Unable to complete the payment with this card, please verify the information and try again.","Unable to complete the payment with this card, please verify the information and try again."
 "Error while processing Payment","Error while processing Payment"
 Ok,Ok
+"Change Payment Method","Change Payment Method"
 "Payment Services","Payment Services"
 "Permission for set preference account PagBank","Permission for set preference account PagBank"
 "Permission for config PagBank","Permission for config PagBank"

@@ -20,7 +20,6 @@
                 <value id="cardinal_commerce_geo" type="host">geoapi.cardinalcommerce.com</value>
                 <value id="cardinal_commerce_1eaf" type="host">1eafapi.cardinalcommerce.com</value>
                 <value id="cardinal_commerce_songbird" type="host">songbird.cardinalcommerce.com</value>
-                <value id="cardinal_commerce_test" type="host">includestest.ccdc02.com</value>
                 <value id="cardinal_commerce_songbird" type="host">songbird.cardinalcommerce.com</value>
             </values>
         </policy>

@@ -151,6 +151,7 @@ define([
                     beforeChallenge: this.challengeInstruction
                 };
 
+            console.log(request);
             return request;
         }
     };

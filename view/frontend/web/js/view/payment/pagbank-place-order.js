@@ -125,6 +125,7 @@ define([
             }).catch((err) => {
                 // eslint-disable-next-line no-undef
                 if (err instanceof PagSeguro.PagSeguroError) {
+                    console.log(err);
                     self.showError(err.detail.message);
                     deferred.resolve(false);
                 } else {

@@ -131,7 +131,7 @@ define([
                         billingAddress: {
                             street: billingAddress.street[0],
                             number: billingAddress.street[1],
-                            complement: billingAddress.street[2],
+                            complement: billingAddress.street[2] ? billingAddress.street[2] : null,
                             regionCode: billingAddress.regionCode,
                             country: countryBilling,
                             city: billingAddress.city,
@@ -140,7 +140,7 @@ define([
                         shippingAddress: {
                             street: shippingAddress.street[0],
                             number: shippingAddress.street[1],
-                            complement: shippingAddress.street[2],
+                            complement: shippingAddress.street[2] ? shippingAddress.street[2] : null,
                             regionCode: shippingAddress.regionCode,
                             country: countryShipping,
                             city: shippingAddress.city,
@@ -151,7 +151,6 @@ define([
                     beforeChallenge: this.challengeInstruction
                 };
 
-            console.log(request);
             return request;
         }
     };

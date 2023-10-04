@@ -36,9 +36,7 @@ define([
          * @returns {Void}
          */
         initialize() {
-            var self = this;
-
-            self._super();
+            this._super();
         },
 
         /**
@@ -50,12 +48,11 @@ define([
          * @returns {Void}
          */
         getPagBankPlace(context, callback, errorCallback) {
-            var self = this,
-                encrypted;
+            let encrypted;
 
             fullScreenLoader.startLoader();
 
-            encrypted = self.getPagBankTokenize(context);
+            encrypted = this.getPagBankTokenize(context);
 
             if (!encrypted) {
                 errorCallback();
@@ -80,7 +77,7 @@ define([
                                 },
                                 data = PagBankPreOrderData.getPreOrderData(cardPayData);
 
-                                return self.sendDataForThreeDS(sessionId, data, context);
+                                return this.sendDataForThreeDS(sessionId, data, context);
                         }).then((result) => {
                             if (result) {
                                 callback();
@@ -103,8 +100,7 @@ define([
          * @param {Object} context
          */
         sendDataForThreeDS(sessionId, data, context) {
-            var self = this,
-                deferred = $.Deferred();
+            let deferred = $.Deferred();
 
             // eslint-disable-next-line no-undef
             PagSeguro.setUp({
@@ -114,19 +110,18 @@ define([
 
             // eslint-disable-next-line no-undef
             PagSeguro.authenticate3DS(data).then(result => {
-                var authId = result.id,
+                let authId = result.id,
                     authStatus = result.status,
                     authenticationStatus = result.authenticationStatus,
-                    isComplet = self.completOrderAuth(context, authStatus, authenticationStatus);
+                    isComplet = this.completOrderAuth(context, authStatus, authenticationStatus);
 
-                self.setThreeDsData(context, authId, authStatus, authenticationStatus);
+                this.setThreeDsData(context, authId, authStatus, authenticationStatus);
                 deferred.resolve(isComplet);
 
             }).catch((err) => {
                 // eslint-disable-next-line no-undef
                 if (err instanceof PagSeguro.PagSeguroError) {
-                    console.log(err);
-                    self.showError(err.detail.message);
+                    this.showError(err.detail.message);
                     deferred.resolve(false);
                 } else {
                     deferred.reject(err);
@@ -155,7 +150,7 @@ define([
          * @returns {Boolean}
          */
         getPagBankTokenize(context) {
-            var cardPs,
+            let cardPs,
                 cardTokenized,
                 cardHasError,
                 cardData = {
@@ -213,21 +208,20 @@ define([
          * @returns {Boolean}
          */
         completOrderAuth(context, authStatus, authenticationStatus) {
-            var self = this,
-                reject = context.baseDataForPaymentForm.hasThreeDsRejectNotAuth();
+            let reject = context.baseDataForPaymentForm.hasThreeDsRejectNotAuth();
 
             if (authStatus === 'AUTH_NOT_SUPPORTED') {
                 return true;
             }
 
             if (authStatus === 'CHANGE_PAYMENT_METHOD') {
-                self.showError($t('Change Payment Method'));
+                this.showError($t('Change Payment Method'));
                 return false;
             }
 
             if (authStatus === 'AUTH_FLOW_COMPLETED' && reject) {
                 if (authenticationStatus === 'NOT_AUTHENTICATED') {
-                    self.showError($t('Change Payment Method'));
+                    this.showError($t('Change Payment Method'));
                     return false;
                 }
                 return authenticationStatus === 'AUTHENTICATED';

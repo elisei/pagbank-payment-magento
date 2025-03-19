@@ -1,0 +1,111 @@
+input CreditCardBinInput {
+    credit_card_bin: String!
+}
+
+input CardTypeTransactionInput {
+    card_type_transaction: String
+}
+
+input InstallmentSelectedInput {
+    installment_selected: Int!
+}
+
+input PagBankListInstallmentsInput {
+    cart_id: String
+    credit_card_bin: CreditCardBinInput!
+    card_type_transaction: CardTypeTransactionInput
+}
+
+input PagBankGuestListInstallmentsInput {
+    cart_id: String!
+    credit_card_bin: CreditCardBinInput!
+    card_type_transaction: CardTypeTransactionInput
+}
+
+input PagBankInterestInput {
+    cart_id: String
+    credit_card_bin: CreditCardBinInput!
+    installment_selected: InstallmentSelectedInput!
+}
+
+input PagBankGuestInterestInput {
+    cart_id: String!
+    credit_card_bin: CreditCardBinInput!
+    installment_selected: InstallmentSelectedInput!
+}
+
+input PagBankCreateVaultTokenInput {
+    encrypted_card: String!
+}
+
+type ThreeDsSessionOutput {
+    session_id: String!
+    expires_at: String!
+}
+
+type PagBankInstallmentPlan {
+    installments: Int!
+    installment_value: Int!
+    interest_free: Boolean!
+    amount: PagBankAmount!
+}
+
+type PagBankAmount {
+    value: Int!
+    fees: PagBankFees
+}
+
+type PagBankFees {
+    buyer: PagBankBuyerFees
+}
+
+type PagBankBuyerFees {
+    interest: PagBankInterestDetails
+}
+
+type PagBankInterestDetails {
+    total: Int!
+}
+
+type PagBankInterestOutput {
+    cart: Cart!
+}
+
+type PagBankVaultTokenOutput {
+    pagbank_token: String!
+    public_hash: String!
+    card_brand: String!
+    last_digits: String!
+    expiration_date: String
+    created_at: String
+    is_active: Boolean!
+    website_id: Int!
+}
+
+type Query {
+    pagBankThreeDsSession: ThreeDsSessionOutput 
+        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\ThreeDsSession") 
+        @cache(cacheable: false)
+    
+    pagBankListInstallments(input: PagBankListInstallmentsInput!): [PagBankInstallmentPlan]! 
+        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\ListInstallments") 
+        @cache(cacheable: false)
+    
+    pagBankGuestListInstallments(input: PagBankGuestListInstallmentsInput!): [PagBankInstallmentPlan]! 
+        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\GuestListInstallments") 
+        @cache(cacheable: false)
+}
+
+type Mutation {
+    pagBankApplyInterest(input: PagBankInterestInput!): PagBankInterestOutput 
+        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\ApplyInterest") 
+        @cache(cacheable: false)
+    
+    pagBankGuestApplyInterest(input: PagBankGuestInterestInput!): PagBankInterestOutput 
+        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\GuestApplyInterest") 
+        @cache(cacheable: false)
+    
+    pagBankCreateVaultToken(input: PagBankCreateVaultTokenInput!): PagBankVaultTokenOutput 
+        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\CreateVaultToken") 
+        @cache(cacheable: false)
+}

@@ -10,6 +10,58 @@
  */
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <!-- GraphQL Resolvers -->
+    <type name="PagBank\PaymentMagento\Model\Resolver\ThreeDsSession">
+        <arguments>
+            <argument name="threeDsSession" xsi:type="object">PagBank\PaymentMagento\Api\ThreeDsSessionInterface</argument>
+        </arguments>
+    </type>
+
+    <type name="PagBank\PaymentMagento\Model\Resolver\ListInstallments">
+        <arguments>
+            <argument name="maskedQuoteIdToQuoteId" xsi:type="object">Magento\Quote\Model\MaskedQuoteIdToQuoteIdInterface</argument>
+            <argument name="cartRepository" xsi:type="object">Magento\Quote\Api\CartRepositoryInterface</argument>
+            <argument name="creditCardBinFactory" xsi:type="object">PagBank\PaymentMagento\Api\Data\CreditCardBinInterfaceFactory</argument>
+            <argument name="cardTypeTransactionFactory" xsi:type="object">PagBank\PaymentMagento\Api\Data\CardTypeTransactionInterfaceFactory</argument>
+            <argument name="listInstallmentsManagement" xsi:type="object">PagBank\PaymentMagento\Api\ListInstallmentsManagementInterface</argument>
+        </arguments>
+    </type>
+
+    <type name="PagBank\PaymentMagento\Model\Resolver\GuestListInstallments">
+        <arguments>
+            <argument name="creditCardBinFactory" xsi:type="object">PagBank\PaymentMagento\Api\Data\CreditCardBinInterfaceFactory</argument>
+            <argument name="cardTypeTransactionFactory" xsi:type="object">PagBank\PaymentMagento\Api\Data\CardTypeTransactionInterfaceFactory</argument>
+            <argument name="guestListInstallmentsManagement" xsi:type="object">PagBank\PaymentMagento\Api\GuestListInstallmentsManagementInterface</argument>
+        </arguments>
+    </type>
+
+    <type name="PagBank\PaymentMagento\Model\Resolver\ApplyInterest">
+        <arguments>
+            <argument name="maskedQuoteIdToQuoteId" xsi:type="object">Magento\Quote\Model\MaskedQuoteIdToQuoteIdInterface</argument>
+            <argument name="cartRepository" xsi:type="object">Magento\Quote\Api\CartRepositoryInterface</argument>
+            <argument name="cartTotalRepository" xsi:type="object">Magento\Quote\Api\CartTotalRepositoryInterface</argument>
+            <argument name="creditCardBinFactory" xsi:type="object">PagBank\PaymentMagento\Api\Data\CreditCardBinInterfaceFactory</argument>
+            <argument name="installmentSelectedFactory" xsi:type="object">PagBank\PaymentMagento\Api\Data\InstallmentSelectedInterfaceFactory</argument>
+            <argument name="interestManagement" xsi:type="object">PagBank\PaymentMagento\Api\InterestManagementInterface</argument>
+        </arguments>
+    </type>
+
+    <type name="PagBank\PaymentMagento\Model\Resolver\GuestApplyInterest">
+        <arguments>
+            <argument name="quoteIdMaskFactory" xsi:type="object">Magento\Quote\Model\QuoteIdMaskFactory</argument>
+            <argument name="cartRepository" xsi:type="object">Magento\Quote\Api\CartRepositoryInterface</argument>
+            <argument name="creditCardBinFactory" xsi:type="object">PagBank\PaymentMagento\Api\Data\CreditCardBinInterfaceFactory</argument>
+            <argument name="installmentSelectedFactory" xsi:type="object">PagBank\PaymentMagento\Api\Data\InstallmentSelectedInterfaceFactory</argument>
+            <argument name="guestInterestManagement" xsi:type="object">PagBank\PaymentMagento\Api\GuestInterestManagementInterface</argument>
+        </arguments>
+    </type>
+
+    <type name="PagBank\PaymentMagento\Model\Resolver\CreateVaultToken">
+        <arguments>
+            <argument name="pagBankVaultManagement" xsi:type="object">PagBank\PaymentMagento\Api\PagBankVaultManagementInterface</argument>
+        </arguments>
+    </type>
+
     <!-- Plugin - Vault not duplicated -->
     <type name="Magento\Vault\Api\PaymentTokenManagementInterface">
         <plugin name="pagbank_vault"

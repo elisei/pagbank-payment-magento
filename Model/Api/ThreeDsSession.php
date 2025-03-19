@@ -25,6 +25,7 @@ use PagBank\PaymentMagento\Api\ThreeDsSessionInterface;
 use PagBank\PaymentMagento\Api\Data\ThreeDsSessionDataInterface;
 use PagBank\PaymentMagento\Api\Data\ThreeDsSessionDataInterfaceFactory;
 use PagBank\PaymentMagento\Gateway\Config\Config as ConfigBase;
+use Psr\Log\LoggerInterface;
 
 /**
  * Class 3ds Session - Get Session for Checkout 3ds on PagBank.
@@ -57,26 +58,34 @@ class ThreeDsSession implements ThreeDsSessionInterface
     protected $sessionData;
 
     /**
-     * InterestManagement constructor.
+     * @var LoggerInterface
+     */
+    protected $logger;
+
+    /**
+     * ThreeDsSession constructor.
      *
-     * @param StoreManagerInterface                 $storeManager
-     * @param ConfigBase                            $configBase
-     * @param ClientFactory                         $httpClientFactory
-     * @param Json                                  $json
-     * @param ThreeDsSessionDataInterfaceFactory    $sessionData
+     * @param StoreManagerInterface $storeManager
+     * @param ConfigBase $configBase
+     * @param ClientFactory $httpClientFactory
+     * @param Json $json
+     * @param ThreeDsSessionDataInterfaceFactory $sessionData
+     * @param LoggerInterface $logger
      */
     public function __construct(
         StoreManagerInterface $storeManager,
         ConfigBase $configBase,
         ClientFactory $httpClientFactory,
         Json $json,
-        ThreeDsSessionDataInterfaceFactory $sessionData
+        ThreeDsSessionDataInterfaceFactory $sessionData,
+        LoggerInterface $logger
     ) {
         $this->storeManager = $storeManager;
         $this->configBase = $configBase;
         $this->httpClientFactory = $httpClientFactory;
         $this->json = $json;
         $this->sessionData = $sessionData;
+        $this->logger = $logger;
     }
 
     /**
@@ -86,49 +95,72 @@ class ThreeDsSession implements ThreeDsSessionInterface
      */
     public function getSession(): ThreeDsSessionDataInterface
     {
-        /** @var AuthDataInterface $data */
-        $data = $this->sessionData->create();
-        
-        $session = $this->getSessionInPagBank();
+        try {
+            /** @var ThreeDsSessionDataInterface $data */
+            $data = $this->sessionData->create();
+            
+            $session = $this->getSessionInPagBank();
 
-        if (isset($session['session'])) {
-            $data->setSessionId($session['session']);
-            $data->setExpiresAt($session['expires_at']);
+            if (isset($session['session']) && isset($session['expires_at'])) {
+                $data->setSessionId((string)$session['session']);
+                $data->setExpiresAt((string)$session['expires_at']);
+            } else {
+                $this->logger->error('Invalid session data returned from PagBank: ' . json_encode($session));
+                throw new LocalizedException(__('Unable to create 3DS session.'));
+            }
+
+            return $data;
+        } catch (\Exception $e) {
+            $this->logger->critical('Error in ThreeDsSession::getSession: ' . $e->getMessage());
+            throw new LocalizedException(__('Error retrieving 3DS session: %1', $e->getMessage()));
         }
-
-        return $data;
     }
 
     /**
      * Get Session in PagBank
      *
-     * @return string|null
+     * @return array
      * @throws InputException
      * @throws NoSuchEntityException
      */
-    public function getSessionInPagBank()
+    public function getSessionInPagBank(): array
     {
-        $storeId = $this->storeManager->getStore()->getId();
-
-        /** @var LaminasClient $client */
-        $client = $this->httpClientFactory->create();
-        $url = $this->configBase->getApiSDKUrl($storeId);
-        $apiConfigs = $this->configBase->getApiConfigs();
-        $headers = $this->configBase->getApiHeaders($storeId);
-        $uri = $url.'checkout-sdk/sessions';
         try {
+            $storeId = $this->storeManager->getStore()->getId();
+
+            /** @var LaminasClient $client */
+            $client = $this->httpClientFactory->create();
+            $url = $this->configBase->getApiSDKUrl($storeId);
+            $apiConfigs = $this->configBase->getApiConfigs();
+            $headers = $this->configBase->getApiHeaders($storeId);
+            $uri = $url.'checkout-sdk/sessions';
+            
             $client->setUri($uri);
             $client->setHeaders($headers);
             $client->setMethod(Request::METHOD_POST);
             $client->setOptions($apiConfigs);
-            $responseBody = $client->send()->getBody();
-
+            $response = $client->send();
+            
+            if ($response->getStatusCode() !== 200 && $response->getStatusCode() !== 201) {
+                $this->logger->error('PagBank API error: ' . $response->getStatusCode() . ' - ' . $response->getReasonPhrase());
+                throw new LocalizedException(__('Error communicating with PagBank API.'));
+            }
+            
+            $responseBody = $response->getBody();
             $dataResponse = $this->json->unserialize($responseBody);
+            
+            if (empty($dataResponse) || !is_array($dataResponse)) {
+                $this->logger->error('Invalid response from PagBank API: ' . $responseBody);
+                throw new LocalizedException(__('Invalid response from PagBank API.'));
+            }
 
             return $dataResponse;
-        } catch (InvalidArgumentException $exc) {
-            // phpcs:ignore Magento2.Exceptions.DirectThrow
-            throw new NoSuchEntityException('Invalid JSON was returned by the gateway');
+        } catch (InvalidArgumentException $e) {
+            $this->logger->critical('Invalid JSON returned by the gateway: ' . $e->getMessage());
+            throw new NoSuchEntityException(__('Invalid JSON was returned by the gateway'));
+        } catch (\Exception $e) {
+            $this->logger->critical('Error in getSessionInPagBank: ' . $e->getMessage());
+            throw new LocalizedException(__('Error communicating with PagBank: %1', $e->getMessage()));
         }
     }
 }

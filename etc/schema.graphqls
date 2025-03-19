@@ -1,3 +1,20 @@
+type Query {
+    pagBankThreeDsSession: ThreeDsSessionOutput @resolver(class: "PagBank\\PaymentMagento\\Model\\Resolver\\ThreeDsSession") @cache(cacheable: false)
+    pagBankListInstallments(input: PagBankListInstallmentsInput!): [PagBankInstallmentPlan]! @resolver(class: "PagBank\\PaymentMagento\\Model\\Resolver\\ListInstallments") @cache(cacheable: false)
+    pagBankGuestListInstallments(input: PagBankGuestListInstallmentsInput!): [PagBankInstallmentPlan]! @resolver(class: "PagBank\\PaymentMagento\\Model\\Resolver\\GuestListInstallments") @cache(cacheable: false)
+}
+
+type Mutation {
+    pagBankApplyInterest(input: PagBankInterestInput!): PagBankInterestOutput @resolver(class: "PagBank\\PaymentMagento\\Model\\Resolver\\ApplyInterest") @cache(cacheable: false)
+    pagBankGuestApplyInterest(input: PagBankGuestInterestInput!): PagBankInterestOutput @resolver(class: "PagBank\\PaymentMagento\\Model\\Resolver\\GuestApplyInterest") @cache(cacheable: false)
+    pagBankCreateVaultToken(input: PagBankCreateVaultTokenInput!): PagBankVaultTokenOutput @resolver(class: "PagBank\\PaymentMagento\\Model\\Resolver\\CreateVaultToken") @cache(cacheable: false)
+}
+
+type ThreeDsSessionOutput {
+    session_id: String!
+    expires_at: String!
+}
+
 input CreditCardBinInput {
     credit_card_bin: String!
 }
@@ -80,32 +97,4 @@ type PagBankVaultTokenOutput {
     created_at: String
     is_active: Boolean!
     website_id: Int!
-}
-
-type Query {
-    pagBankThreeDsSession: ThreeDsSessionOutput 
-        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\ThreeDsSession") 
-        @cache(cacheable: false)
-    
-    pagBankListInstallments(input: PagBankListInstallmentsInput!): [PagBankInstallmentPlan]! 
-        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\ListInstallments") 
-        @cache(cacheable: false)
-    
-    pagBankGuestListInstallments(input: PagBankGuestListInstallmentsInput!): [PagBankInstallmentPlan]! 
-        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\GuestListInstallments") 
-        @cache(cacheable: false)
-}
-
-type Mutation {
-    pagBankApplyInterest(input: PagBankInterestInput!): PagBankInterestOutput 
-        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\ApplyInterest") 
-        @cache(cacheable: false)
-    
-    pagBankGuestApplyInterest(input: PagBankGuestInterestInput!): PagBankInterestOutput 
-        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\GuestApplyInterest") 
-        @cache(cacheable: false)
-    
-    pagBankCreateVaultToken(input: PagBankCreateVaultTokenInput!): PagBankVaultTokenOutput 
-        @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\CreateVaultToken") 
-        @cache(cacheable: false)
 }

@@ -15,6 +15,57 @@ type ThreeDsSessionOutput {
     expires_at: String!
 }
 
+input PaymentMethodInput {
+    pagbank_paymentmagento_cc: PagBankCcInput
+    pagbank_paymentmagento_cc_vault: PagBankCcVaultInput
+    pagbank_paymentmagento_boleto: PagBankBoletoInput
+    pagbank_paymentmagento_pix: PagBankPixInput
+    pagbank_paymentmagento_deep_link: PagBankDeepLinkInput
+}
+
+input PagBankCcInput {
+    cc_number_token: String!
+    cc_installments: Int!
+    cc_cardholder_name: String!
+    payer_tax_id: String
+    payer_phone: String
+    is_active_payment_token_enabler: Boolean
+    cc_cid: String
+    card_type_transaction: String
+    three_ds_session: String
+    three_ds_auth: String
+    three_ds_auth_status: String
+}
+
+input PagBankCcVaultInput {
+    public_hash: String!
+    cc_installments: Int!
+    payer_tax_id: String
+    payer_phone: String
+    card_type_transaction: String
+    three_ds_session: String
+    three_ds_auth: String
+    three_ds_auth_status: String
+}
+
+input PagBankBoletoInput {
+    payer_name: String
+    payer_tax_id: String!
+    payer_phone: String
+}
+
+input PagBankPixInput {
+    payer_name: String
+    payer_tax_id: String
+    payer_phone: String
+}
+
+input PagBankDeepLinkInput {
+    payer_name: String
+    payer_tax_id: String
+    payer_phone: String
+}
+
 input CreditCardBinInput {
     credit_card_bin: String!
 }

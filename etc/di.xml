@@ -10,6 +10,33 @@
  */
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <!-- Plugins for SetPaymentMethodOnCart -->
+    <type name="Magento\QuoteGraphQl\Model\Cart\SetPaymentMethodOnCart">
+        <!-- Plugin for Credit Card -->
+        <plugin name="pagbank_set_credit_card_payment_data" 
+                type="PagBank\PaymentMagento\Plugin\SetCreditCardPaymentData" 
+                sortOrder="10" />
+                
+        <!-- Plugin for Credit Card Vault -->
+        <plugin name="pagbank_set_credit_card_vault_payment_data" 
+                type="PagBank\PaymentMagento\Plugin\SetCreditCardVaultPaymentData" 
+                sortOrder="20" />
+                
+        <!-- Plugin for Boleto -->
+        <plugin name="pagbank_set_boleto_payment_data" 
+                type="PagBank\PaymentMagento\Plugin\SetBoletoPaymentData" 
+                sortOrder="30" />
+                
+        <!-- Plugin for Pix -->
+        <plugin name="pagbank_set_pix_payment_data" 
+                type="PagBank\PaymentMagento\Plugin\SetPixPaymentData" 
+                sortOrder="40" />
+                
+        <!-- Plugin for DeepLink -->
+        <plugin name="pagbank_set_deep_link_payment_data" 
+                type="PagBank\PaymentMagento\Plugin\SetDeepLinkPaymentData" 
+                sortOrder="50" />
+    </type>
     <!-- GraphQL Resolvers -->
     <type name="PagBank\PaymentMagento\Model\Resolver\ThreeDsSession">
         <arguments>

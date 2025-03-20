@@ -18,6 +18,7 @@ use Magento\Framework\GraphQl\Exception\GraphQlNoSuchEntityException;
 use Magento\Framework\GraphQl\Query\ResolverInterface;
 use Magento\Framework\GraphQl\Schema\Type\ResolveInfo;
 use Magento\Quote\Api\CartRepositoryInterface;
+use Magento\Quote\Api\CartTotalRepositoryInterface;
 use Magento\Quote\Model\QuoteIdMaskFactory;
 use PagBank\PaymentMagento\Api\Data\CreditCardBinInterface;
 use PagBank\PaymentMagento\Api\Data\CreditCardBinInterfaceFactory;
@@ -42,6 +43,11 @@ class GuestApplyInterest implements ResolverInterface
     private $cartRepository;
 
     /**
+     * @var CartTotalRepositoryInterface
+     */
+    private $cartTotalRepository;
+
+    /**
      * @var CreditCardBinInterfaceFactory
      */
     private $creditCardBinFactory;
@@ -64,6 +70,7 @@ class GuestApplyInterest implements ResolverInterface
     /**
      * @param QuoteIdMaskFactory $quoteIdMaskFactory
      * @param CartRepositoryInterface $cartRepository
+     * @param CartTotalRepositoryInterface $cartTotalRepository
      * @param CreditCardBinInterfaceFactory $creditCardBinFactory
      * @param InstallmentSelectedInterfaceFactory $installmentSelectedFactory
      * @param GuestInterestManagementInterface $guestInterestManagement
@@ -72,6 +79,7 @@ class GuestApplyInterest implements ResolverInterface
     public function __construct(
         QuoteIdMaskFactory $quoteIdMaskFactory,
         CartRepositoryInterface $cartRepository,
+        CartTotalRepositoryInterface $cartTotalRepository,
         CreditCardBinInterfaceFactory $creditCardBinFactory,
         InstallmentSelectedInterfaceFactory $installmentSelectedFactory,
         GuestInterestManagementInterface $guestInterestManagement,
@@ -79,6 +87,7 @@ class GuestApplyInterest implements ResolverInterface
     ) {
         $this->quoteIdMaskFactory = $quoteIdMaskFactory;
         $this->cartRepository = $cartRepository;
+        $this->cartTotalRepository = $cartTotalRepository;
         $this->creditCardBinFactory = $creditCardBinFactory;
         $this->installmentSelectedFactory = $installmentSelectedFactory;
         $this->guestInterestManagement = $guestInterestManagement;
@@ -171,20 +180,12 @@ class GuestApplyInterest implements ResolverInterface
             $quoteId = $quoteIdMask->getQuoteId();
             $quote = $this->cartRepository->get($quoteId);
 
-            // Montar resposta com estrutura compatível com o schema GraphQL
             return [
                 'cart' => [
-                    'id' => $quote->getId(),
-                    'items' => $quote->getAllVisibleItems(),
-                    'total_quantity' => $quote->getItemsQty(),
-                    'prices' => [
-                        'grand_total' => [
-                            'value' => $cartTotals->getGrandTotal(),
-                            'currency' => $cartTotals->getQuoteCurrencyCode()
-                        ]
-                    ]
+                    'model' => $quote,
                 ]
             ];
+
         } catch (GraphQlInputException | GraphQlNoSuchEntityException $e) {
             throw $e;
         } catch (\Exception $e) {

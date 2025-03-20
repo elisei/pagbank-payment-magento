@@ -540,9 +540,14 @@ class VaultAddtionalCommand implements VaultPaymentInterface
         if (empty($additionalInformation[PaymentTokenInterface::PUBLIC_HASH])) {
             throw new \LogicException('Public hash should be defined');
         }
-
+    
         $customerId = isset($additionalInformation[PaymentTokenInterface::CUSTOMER_ID]) ?
             $additionalInformation[PaymentTokenInterface::CUSTOMER_ID] : null;
+
+        if (!$customerId) {
+            $order = $orderPayment->getOrder();
+            $customerId = $order && $order->getCustomerId() ? $order->getCustomerId() : null;
+        }
 
         $publicHash = $additionalInformation[PaymentTokenInterface::PUBLIC_HASH];
 

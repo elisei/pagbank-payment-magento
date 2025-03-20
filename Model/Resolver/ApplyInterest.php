@@ -194,21 +194,9 @@ class ApplyInterest implements ResolverInterface
                 $installmentSelectedObj
             );
 
-            // Obter o carrinho atualizado
-            $updatedQuote = $this->cartRepository->get((int)$cartId);
-
-            // Montar resposta com estrutura compatível com o schema GraphQL
             return [
                 'cart' => [
-                    'id' => $updatedQuote->getId(),
-                    'items' => $updatedQuote->getAllVisibleItems(),
-                    'total_quantity' => $updatedQuote->getItemsQty(),
-                    'prices' => [
-                        'grand_total' => [
-                            'value' => $cartTotals->getGrandTotal(),
-                            'currency' => $cartTotals->getQuoteCurrencyCode()
-                        ]
-                    ]
+                    'model' => $quote,
                 ]
             ];
         } catch (GraphQlInputException | GraphQlNoSuchEntityException | GraphQlAuthorizationException $e) {

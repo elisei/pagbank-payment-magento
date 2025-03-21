@@ -17,7 +17,6 @@ use Magento\Framework\GraphQl\Exception\GraphQlInputException;
 use Magento\Framework\GraphQl\Query\ResolverInterface;
 use Magento\Framework\GraphQl\Schema\Type\ResolveInfo;
 use PagBank\PaymentMagento\Api\ThreeDsSessionInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * Class ThreeDsSession Resolver - Get 3DS Session for PagBank.
@@ -30,20 +29,12 @@ class ThreeDsSession implements ResolverInterface
     private $threeDsSession;
 
     /**
-     * @var LoggerInterface
-     */
-    private $logger;
-
-    /**
      * @param ThreeDsSessionInterface $threeDsSession
-     * @param LoggerInterface $logger
      */
     public function __construct(
-        ThreeDsSessionInterface $threeDsSession,
-        LoggerInterface $logger
+        ThreeDsSessionInterface $threeDsSession
     ) {
         $this->threeDsSession = $threeDsSession;
-        $this->logger = $logger;
     }
 
     /**
@@ -56,6 +47,8 @@ class ThreeDsSession implements ResolverInterface
      * @param array|null $args
      * @return array|\Magento\Framework\GraphQl\Query\Resolver\Value|mixed
      * @throws \Exception
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function resolve(
         Field $field,
@@ -67,7 +60,6 @@ class ThreeDsSession implements ResolverInterface
         try {
             $sessionData = $this->threeDsSession->getSession();
             
-            // Verificar se os dados da sessão são válidos
             if (!$sessionData || !$sessionData->getSessionId()) {
                 throw new GraphQlInputException(__('Unable to create 3DS session.'));
             }
@@ -77,7 +69,6 @@ class ThreeDsSession implements ResolverInterface
                 'expires_at' => (string)$sessionData->getExpiresAt()
             ];
         } catch (\Exception $e) {
-            $this->logger->critical('GraphQL error in ThreeDsSession: ' . $e->getMessage());
             throw new GraphQlInputException(__('Error retrieving 3DS session: %1', $e->getMessage()));
         }
     }

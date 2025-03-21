@@ -47,6 +47,8 @@ class SetCreditCardPaymentData
      * @param Quote $quote
      * @param array $paymentData
      * @return mixed
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function afterExecute(
         SetPaymentMethodOnCart $subject,
@@ -63,7 +65,6 @@ class SetCreditCardPaymentData
             
             $inputData = $paymentData[ConfigProviderCc::CODE] ?? [];
             
-            // Map GraphQL input fields to expected additional_data format
             $fieldMapping = [
                 'cc_number_token' => DataAssignCcObserver::PAYMENT_INFO_NUMBER_TOKEN,
                 'cc_installments' => DataAssignCcObserver::PAYMENT_INFO_CC_INSTALLMENTS,

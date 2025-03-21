@@ -35,26 +35,26 @@ class GuestListInstallments implements ResolverInterface
     /**
      * @var CardTypeTransactionInterfaceFactory
      */
-    private $cardTypeTransactionFactory;
+    private $cardTypeTransaction;
 
     /**
      * @var GuestListInstallmentsManagementInterface
      */
-    private $guestListInstallmentsManagement;
+    private $guestListInstall;
 
     /**
      * @param CreditCardBinInterfaceFactory $creditCardBinFactory
-     * @param CardTypeTransactionInterfaceFactory $cardTypeTransactionFactory
-     * @param GuestListInstallmentsManagementInterface $guestListInstallmentsManagement
+     * @param CardTypeTransactionInterfaceFactory $cardTypeTransaction
+     * @param GuestListInstallmentsManagementInterface $guestListInstall
      */
     public function __construct(
         CreditCardBinInterfaceFactory $creditCardBinFactory,
-        CardTypeTransactionInterfaceFactory $cardTypeTransactionFactory,
-        GuestListInstallmentsManagementInterface $guestListInstallmentsManagement
+        CardTypeTransactionInterfaceFactory $cardTypeTransaction,
+        GuestListInstallmentsManagementInterface $guestListInstall
     ) {
         $this->creditCardBinFactory = $creditCardBinFactory;
-        $this->cardTypeTransactionFactory = $cardTypeTransactionFactory;
-        $this->guestListInstallmentsManagement = $guestListInstallmentsManagement;
+        $this->cardTypeTransaction = $cardTypeTransaction;
+        $this->guestListInstall = $guestListInstall;
     }
 
     /**
@@ -67,6 +67,8 @@ class GuestListInstallments implements ResolverInterface
      * @param array|null $args
      * @return array|\Magento\Framework\GraphQl\Query\Resolver\Value|mixed
      * @throws \Exception
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function resolve(
         Field $field,
@@ -107,11 +109,11 @@ class GuestListInstallments implements ResolverInterface
             if (isset($input['card_type_transaction']) && 
                 isset($input['card_type_transaction']['card_type_transaction']) && 
                 !empty($input['card_type_transaction']['card_type_transaction'])) {
-                $cardTypeTransaction = $this->cardTypeTransactionFactory->create();
+                $cardTypeTransaction = $this->cardTypeTransaction->create();
                 $cardTypeTransaction->setCardTypeTransaction($input['card_type_transaction']['card_type_transaction']);
             }
 
-            $installmentList = $this->guestListInstallmentsManagement->generateListInstallments(
+            $installmentList = $this->guestListInstall->generateListInstallments(
                 $cartId,
                 $creditCardBin,
                 $cardTypeTransaction

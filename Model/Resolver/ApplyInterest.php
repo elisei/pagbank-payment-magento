@@ -26,7 +26,6 @@ use PagBank\PaymentMagento\Api\Data\CreditCardBinInterfaceFactory;
 use PagBank\PaymentMagento\Api\Data\InstallmentSelectedInterface;
 use PagBank\PaymentMagento\Api\Data\InstallmentSelectedInterfaceFactory;
 use PagBank\PaymentMagento\Api\InterestManagementInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * Class ApplyInterest Resolver - Calculate and apply interest to cart for selected installment.
@@ -36,7 +35,7 @@ class ApplyInterest implements ResolverInterface
     /**
      * @var MaskedQuoteIdToQuoteIdInterface
      */
-    private $maskedQuoteIdToQuoteId;
+    private $maskedQuote;
 
     /**
      * @var CartRepositoryInterface
@@ -56,7 +55,7 @@ class ApplyInterest implements ResolverInterface
     /**
      * @var InstallmentSelectedInterfaceFactory
      */
-    private $installmentSelectedFactory;
+    private $installmentSelected;
 
     /**
      * @var InterestManagementInterface
@@ -64,35 +63,27 @@ class ApplyInterest implements ResolverInterface
     private $interestManagement;
 
     /**
-     * @var LoggerInterface
-     */
-    private $logger;
-
-    /**
-     * @param MaskedQuoteIdToQuoteIdInterface $maskedQuoteIdToQuoteId
+     * @param MaskedQuoteIdToQuoteIdInterface $maskedQuote
      * @param CartRepositoryInterface $cartRepository
      * @param CartTotalRepositoryInterface $cartTotalRepository
      * @param CreditCardBinInterfaceFactory $creditCardBinFactory
-     * @param InstallmentSelectedInterfaceFactory $installmentSelectedFactory
+     * @param InstallmentSelectedInterfaceFactory $installmentSelected
      * @param InterestManagementInterface $interestManagement
-     * @param LoggerInterface $logger
      */
     public function __construct(
-        MaskedQuoteIdToQuoteIdInterface $maskedQuoteIdToQuoteId,
+        MaskedQuoteIdToQuoteIdInterface $maskedQuote,
         CartRepositoryInterface $cartRepository,
         CartTotalRepositoryInterface $cartTotalRepository,
         CreditCardBinInterfaceFactory $creditCardBinFactory,
-        InstallmentSelectedInterfaceFactory $installmentSelectedFactory,
-        InterestManagementInterface $interestManagement,
-        LoggerInterface $logger
+        InstallmentSelectedInterfaceFactory $installmentSelected,
+        InterestManagementInterface $interestManagement
     ) {
-        $this->maskedQuoteIdToQuoteId = $maskedQuoteIdToQuoteId;
+        $this->maskedQuote = $maskedQuote;
         $this->cartRepository = $cartRepository;
         $this->cartTotalRepository = $cartTotalRepository;
         $this->creditCardBinFactory = $creditCardBinFactory;
-        $this->installmentSelectedFactory = $installmentSelectedFactory;
+        $this->installmentSelected = $installmentSelected;
         $this->interestManagement = $interestManagement;
-        $this->logger = $logger;
     }
 
     /**
@@ -105,6 +96,8 @@ class ApplyInterest implements ResolverInterface
      * @param array|null $args
      * @return array|\Magento\Framework\GraphQl\Query\Resolver\Value|mixed
      * @throws \Exception
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function resolve(
         Field $field,
@@ -113,9 +106,7 @@ class ApplyInterest implements ResolverInterface
         array $value = null,
         array $args = null
     ) {
-        $this->logger->debug('ApplyInterest resolver called with args: ' . json_encode($args));
         
-        // Verificar autenticação
         if (!$context->getUserId()) {
             throw new GraphQlAuthorizationException(__('The current customer isn\'t authorized.'));
         }
@@ -146,14 +137,12 @@ class ApplyInterest implements ResolverInterface
                 $cartId = (string)$context->getUserId();
             } else {
                 try {
-                    $cartId = (string)$this->maskedQuoteIdToQuoteId->execute($cartId);
+                    $cartId = (string)$this->maskedQuote->execute($cartId);
                 } catch (\Exception $e) {
-                    $this->logger->error('Error converting masked quote ID: ' . $e->getMessage());
                     throw new GraphQlInputException(__('Could not find a cart with the provided cart_id.'));
                 }
             }
 
-            // Validar se o carrinho existe
             try {
                 $quote = $this->cartRepository->get((int)$cartId);
                 if (!$quote->getId()) {
@@ -167,7 +156,6 @@ class ApplyInterest implements ResolverInterface
                 throw new GraphQlNoSuchEntityException(__('Cart with ID "%1" does not exist.', $cartId));
             }
 
-            // Verificar e validar o bin do cartão
             $creditCardBin = $input['credit_card_bin']['credit_card_bin'];
             if (!preg_match('/^\d+$/', $creditCardBin)) {
                 throw new GraphQlInputException(__('Invalid credit_card_bin format. Must contain only digits.'));
@@ -177,21 +165,19 @@ class ApplyInterest implements ResolverInterface
             $creditCardBinObj = $this->creditCardBinFactory->create();
             $creditCardBinObj->setCreditCardBin($creditCardBin);
 
-            // Verificar e validar o número de parcelas
             $installmentSelected = (int)$input['installment_selected']['installment_selected'];
             if ($installmentSelected <= 0) {
                 throw new GraphQlInputException(__('Invalid installment number. Must be a positive integer.'));
             }
 
-            /** @var InstallmentSelectedInterface $installmentSelectedObj */
-            $installmentSelectedObj = $this->installmentSelectedFactory->create();
-            $installmentSelectedObj->setInstallmentSelected($installmentSelected);
+            /** @var InstallmentSelectedInterface $insSelectedObj */
+            $insSelectedObj = $this->installmentSelected->create();
+            $insSelectedObj->setInstallmentSelected($installmentSelected);
 
-            // Aplicar juros
-            $cartTotals = $this->interestManagement->generatePagBankInterest(
+            $this->interestManagement->generatePagBankInterest(
                 (int)$cartId,
                 $creditCardBinObj,
-                $installmentSelectedObj
+                $insSelectedObj
             );
 
             return [
@@ -202,7 +188,6 @@ class ApplyInterest implements ResolverInterface
         } catch (GraphQlInputException | GraphQlNoSuchEntityException | GraphQlAuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            $this->logger->critical('GraphQL error in ApplyInterest: ' . $e->getMessage());
             throw new GraphQlInputException(__('Error applying interest: %1', $e->getMessage()));
         }
     }

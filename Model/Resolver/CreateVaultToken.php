@@ -18,7 +18,6 @@ use Magento\Framework\GraphQl\Exception\GraphQlInputException;
 use Magento\Framework\GraphQl\Query\ResolverInterface;
 use Magento\Framework\GraphQl\Schema\Type\ResolveInfo;
 use PagBank\PaymentMagento\Api\PagBankVaultManagementInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * Class CreateVaultToken - Create vault token for customer credit card.
@@ -28,23 +27,15 @@ class CreateVaultToken implements ResolverInterface
     /**
      * @var PagBankVaultManagementInterface
      */
-    private $pagBankVaultManagement;
+    private $pagBankVault;
 
     /**
-     * @var LoggerInterface
-     */
-    private $logger;
-
-    /**
-     * @param PagBankVaultManagementInterface $pagBankVaultManagement
-     * @param LoggerInterface $logger
+     * @param PagBankVaultManagementInterface $pagBankVault
      */
     public function __construct(
-        PagBankVaultManagementInterface $pagBankVaultManagement,
-        LoggerInterface $logger
+        PagBankVaultManagementInterface $pagBankVault
     ) {
-        $this->pagBankVaultManagement = $pagBankVaultManagement;
-        $this->logger = $logger;
+        $this->pagBankVault = $pagBankVault;
     }
 
     /**
@@ -57,6 +48,8 @@ class CreateVaultToken implements ResolverInterface
      * @param array|null $args
      * @return array|\Magento\Framework\GraphQl\Query\Resolver\Value|mixed
      * @throws \Exception
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function resolve(
         Field $field,
@@ -65,9 +58,7 @@ class CreateVaultToken implements ResolverInterface
         array $value = null,
         array $args = null
     ) {
-        $this->logger->debug('CreateVaultToken resolver called with args: ' . json_encode($args));
         
-        // Verificar autenticação
         if (!$context->getUserId()) {
             throw new GraphQlAuthorizationException(__('The current customer isn\'t authorized.'));
         }
@@ -85,7 +76,7 @@ class CreateVaultToken implements ResolverInterface
             $customerId = (int)$context->getUserId();
             $encryptedCard = $input['encrypted_card'];
 
-            $vaultToken = $this->pagBankVaultManagement->createVaultToken(
+            $vaultToken = $this->pagBankVault->createVaultToken(
                 $customerId,
                 $encryptedCard
             );
@@ -107,7 +98,6 @@ class CreateVaultToken implements ResolverInterface
         } catch (GraphQlInputException | GraphQlAuthorizationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            $this->logger->critical('GraphQL error in CreateVaultToken: ' . $e->getMessage());
             throw new GraphQlInputException(__('Error creating vault token: %1', $e->getMessage()));
         }
     }

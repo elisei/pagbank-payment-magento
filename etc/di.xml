@@ -38,6 +38,14 @@
                 sortOrder="50" />
     </type>
     <!-- GraphQL Resolvers -->
+    <type name="PagBank\PaymentMagento\Model\Resolver\GetOrderPaymentInfo">
+        <arguments>
+            <argument name="orderRepository" xsi:type="object">Magento\Sales\Api\OrderRepositoryInterface</argument>
+            <argument name="searchCriteriaBuilder" xsi:type="object">Magento\Framework\Api\SearchCriteriaBuilder</argument>
+            <argument name="logger" xsi:type="object">PagBankLogger</argument>
+        </arguments>
+    </type>
+
     <type name="PagBank\PaymentMagento\Model\Resolver\ThreeDsSession">
         <arguments>
             <argument name="threeDsSession" xsi:type="object">PagBank\PaymentMagento\Api\ThreeDsSessionInterface</argument>

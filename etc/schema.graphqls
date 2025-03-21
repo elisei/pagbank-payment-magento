@@ -15,6 +15,73 @@ type ThreeDsSessionOutput {
     expires_at: String!
 }
 
+type Query {
+    pagBankGetOrderPaymentInfo(
+        input: PagBankGetOrderPaymentInfoInput! @doc(description: "Input parameters for retrieving order payment information")
+    ): PagBankOrderPaymentInfo @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\GetOrderPaymentInfo") @doc(description: "Returns payment information for a PagBank order") @cache(cacheable: false)
+}
+
+input PagBankGetOrderPaymentInfoInput @doc(description: "Input for retrieving order payment information") {
+    order_id: Int @doc(description: "Order ID")
+    increment_id: String @doc(description: "Order increment ID")
+    guest_email: String @doc(description: "Guest email for non-logged in customers")
+}
+
+type PagBankOrderPaymentInfo @doc(description: "PagBank order payment information") {
+    order_id: Int! @doc(description: "Order ID")
+    increment_id: String! @doc(description: "Order increment ID")
+    payment_method: String! @doc(description: "Payment method code")
+    payment_status: String! @doc(description: "Current payment status")
+    created_at: String! @doc(description: "Order creation date")
+    grand_total: Float! @doc(description: "Order grand total")
+    currency_code: String! @doc(description: "Order currency code")
+    pagbank_order_id: String @doc(description: "PagBank order/transaction ID")
+    payment_type: String! @doc(description: "Payment type (credit_card, boleto, pix, deep_link)")
+    additional_information: PagBankAdditionalInformation @doc(description: "Common additional information")
+    credit_card_details: PagBankCreditCardDetails @doc(description: "Credit card payment details")
+    boleto_details: PagBankBoletoDetails @doc(description: "Boleto payment details")
+    pix_details: PagBankPixDetails @doc(description: "PIX payment details")
+    deep_link_details: PagBankDeepLinkDetails @doc(description: "Deep Link payment details")
+}
+
+type PagBankAdditionalInformation @doc(description: "Common PagBank additional information") {
+    payer_name: String @doc(description: "Payer name")
+    payer_tax_id: String @doc(description: "Payer tax ID")
+    payer_phone: String @doc(description: "Payer phone number")
+    charge_id: String @doc(description: "PagBank charge ID")
+}
+
+type PagBankCreditCardDetails @doc(description: "Credit card payment details") {
+    cc_type: String @doc(description: "Credit card type (VI, MC, DN...)")
+    cc_number: String @doc(description: "Credit card number (414141*******4141)")
+    cc_exp_month: String @doc(description: "Credit card expiration month")
+    cc_exp_year: String @doc(description: "Credit card expiration year")
+    cc_installments: Int @doc(description: "Number of installments")
+    cc_cardholder_name: String @doc(description: "Cardholder name")
+    cc_authorization_code: String @doc(description: "Authorization Code")
+    cc_nsu: String @doc(description: "NSU")
+    three_ds_auth_status: String @doc(description: "3DS State")
+    pagbank_interest_amount: Float @doc(description: "Interest amount")
+}
+
+type PagBankBoletoDetails @doc(description: "Boleto payment details") {
+    boleto_pdf_href: String @doc(description: "Boleto URL")
+    boleto_line_code: String @doc(description: "Boleto barcode")
+    expiration_date: String @doc(description: "Boleto expiration date")
+}
+
+type PagBankPixDetails @doc(description: "PIX payment details") {
+    qr_code_image: String @doc(description: "PIX QR code image URL")
+    qr_code: String @doc(description: "PIX copy and paste code")
+    expiration_date: String @doc(description: "PIX expiration date")
+}
+
+type PagBankDeepLinkDetails @doc(description: "Deep Link payment details") {
+    qr_code_url_image: String @doc(description: "Deep link URL")
+    deep_link_url: String @doc(description: "Deep link QR code image URL")
+    expiration_date: String @doc(description: "Deep link expiration date")
+}
+
 input PaymentMethodInput {
     pagbank_paymentmagento_cc: PagBankCcInput
     pagbank_paymentmagento_cc_vault: PagBankCcVaultInput

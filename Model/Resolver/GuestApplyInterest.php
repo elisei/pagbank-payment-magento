@@ -25,7 +25,6 @@ use PagBank\PaymentMagento\Api\Data\CreditCardBinInterfaceFactory;
 use PagBank\PaymentMagento\Api\Data\InstallmentSelectedInterface;
 use PagBank\PaymentMagento\Api\Data\InstallmentSelectedInterfaceFactory;
 use PagBank\PaymentMagento\Api\GuestInterestManagementInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * Class GuestApplyInterest Resolver - Calculate and apply interest to guest cart for selected installment.
@@ -55,43 +54,35 @@ class GuestApplyInterest implements ResolverInterface
     /**
      * @var InstallmentSelectedInterfaceFactory
      */
-    private $installmentSelectedFactory;
+    private $installmentSelected;
 
     /**
      * @var GuestInterestManagementInterface
      */
-    private $guestInterestManagement;
-
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
+    private $guestInterest;
 
     /**
      * @param QuoteIdMaskFactory $quoteIdMaskFactory
      * @param CartRepositoryInterface $cartRepository
      * @param CartTotalRepositoryInterface $cartTotalRepository
      * @param CreditCardBinInterfaceFactory $creditCardBinFactory
-     * @param InstallmentSelectedInterfaceFactory $installmentSelectedFactory
-     * @param GuestInterestManagementInterface $guestInterestManagement
-     * @param LoggerInterface $logger
+     * @param InstallmentSelectedInterfaceFactory $installmentSelected
+     * @param GuestInterestManagementInterface $guestInterest
      */
     public function __construct(
         QuoteIdMaskFactory $quoteIdMaskFactory,
         CartRepositoryInterface $cartRepository,
         CartTotalRepositoryInterface $cartTotalRepository,
         CreditCardBinInterfaceFactory $creditCardBinFactory,
-        InstallmentSelectedInterfaceFactory $installmentSelectedFactory,
-        GuestInterestManagementInterface $guestInterestManagement,
-        LoggerInterface $logger
+        InstallmentSelectedInterfaceFactory $installmentSelected,
+        GuestInterestManagementInterface $guestInterest
     ) {
         $this->quoteIdMaskFactory = $quoteIdMaskFactory;
         $this->cartRepository = $cartRepository;
         $this->cartTotalRepository = $cartTotalRepository;
         $this->creditCardBinFactory = $creditCardBinFactory;
-        $this->installmentSelectedFactory = $installmentSelectedFactory;
-        $this->guestInterestManagement = $guestInterestManagement;
-        $this->logger = $logger;
+        $this->installmentSelected = $installmentSelected;
+        $this->guestInterest = $guestInterest;
     }
 
     /**
@@ -104,6 +95,8 @@ class GuestApplyInterest implements ResolverInterface
      * @param array|null $args
      * @return array|\Magento\Framework\GraphQl\Query\Resolver\Value|mixed
      * @throws \Exception
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function resolve(
         Field $field,
@@ -112,7 +105,6 @@ class GuestApplyInterest implements ResolverInterface
         array $value = null,
         array $args = null
     ) {
-        $this->logger->debug('GuestApplyInterest resolver called with args: ' . json_encode($args));
         
         if (empty($args['input']) || !is_array($args['input'])) {
             throw new GraphQlInputException(__('Required parameter "input" is missing or invalid.'));
@@ -144,7 +136,6 @@ class GuestApplyInterest implements ResolverInterface
                 throw new GraphQlInputException(__('Invalid cart_id provided.'));
             }
 
-            // Verificar e validar o bin do cartão
             $creditCardBin = $input['credit_card_bin']['credit_card_bin'];
             if (!preg_match('/^\d+$/', $creditCardBin)) {
                 throw new GraphQlInputException(__('Invalid credit_card_bin format. Must contain only digits.'));
@@ -154,24 +145,21 @@ class GuestApplyInterest implements ResolverInterface
             $creditCardBinObj = $this->creditCardBinFactory->create();
             $creditCardBinObj->setCreditCardBin($creditCardBin);
 
-            // Verificar e validar o número de parcelas
             $installmentSelected = (int)$input['installment_selected']['installment_selected'];
             if ($installmentSelected <= 0) {
                 throw new GraphQlInputException(__('Invalid installment number. Must be a positive integer.'));
             }
 
-            /** @var InstallmentSelectedInterface $installmentSelectedObj */
-            $installmentSelectedObj = $this->installmentSelectedFactory->create();
-            $installmentSelectedObj->setInstallmentSelected($installmentSelected);
+            /** @var InstallmentSelectedInterface $insSelectedObj */
+            $insSelectedObj = $this->installmentSelected->create();
+            $insSelectedObj->setInstallmentSelected($installmentSelected);
 
-            // Aplicar juros
-            $cartTotals = $this->guestInterestManagement->generatePagBankInterest(
+            $this->guestInterest->generatePagBankInterest(
                 $cartId,
                 $creditCardBinObj,
-                $installmentSelectedObj
+                $insSelectedObj
             );
 
-            // Obter o ID real do carrinho a partir do ID mascarado
             $quoteIdMask = $this->quoteIdMaskFactory->create()->load($cartId, 'masked_id');
             if (!$quoteIdMask->getQuoteId()) {
                 throw new GraphQlNoSuchEntityException(__('Cart with ID "%1" does not exist.', $cartId));
@@ -189,7 +177,6 @@ class GuestApplyInterest implements ResolverInterface
         } catch (GraphQlInputException | GraphQlNoSuchEntityException $e) {
             throw $e;
         } catch (\Exception $e) {
-            $this->logger->critical('GraphQL error in GuestApplyInterest: ' . $e->getMessage());
             throw new GraphQlInputException(__('Error applying interest to guest cart: %1', $e->getMessage()));
         }
     }

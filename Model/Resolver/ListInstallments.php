@@ -24,7 +24,6 @@ use PagBank\PaymentMagento\Api\Data\CardTypeTransactionInterfaceFactory;
 use PagBank\PaymentMagento\Api\Data\CreditCardBinInterface;
 use PagBank\PaymentMagento\Api\Data\CreditCardBinInterfaceFactory;
 use PagBank\PaymentMagento\Api\ListInstallmentsManagementInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * Class ListInstallments Resolver - Get available installments for credit card.
@@ -34,7 +33,7 @@ class ListInstallments implements ResolverInterface
     /**
      * @var MaskedQuoteIdToQuoteIdInterface
      */
-    private $maskedQuoteIdToQuoteId;
+    private $maskedQuoteId;
 
     /**
      * @var CartRepositoryInterface
@@ -49,40 +48,32 @@ class ListInstallments implements ResolverInterface
     /**
      * @var CardTypeTransactionInterfaceFactory
      */
-    private $cardTypeTransactionFactory;
+    private $cardTypeTransaction;
 
     /**
      * @var ListInstallmentsManagementInterface
      */
-    private $listInstallmentsManagement;
+    private $listInstallments;
 
     /**
-     * @var LoggerInterface
-     */
-    private $logger;
-
-    /**
-     * @param MaskedQuoteIdToQuoteIdInterface $maskedQuoteIdToQuoteId
+     * @param MaskedQuoteIdToQuoteIdInterface $maskedQuoteId
      * @param CartRepositoryInterface $cartRepository
      * @param CreditCardBinInterfaceFactory $creditCardBinFactory
-     * @param CardTypeTransactionInterfaceFactory $cardTypeTransactionFactory
-     * @param ListInstallmentsManagementInterface $listInstallmentsManagement
-     * @param LoggerInterface $logger
+     * @param CardTypeTransactionInterfaceFactory $cardTypeTransaction
+     * @param ListInstallmentsManagementInterface $listInstallments
      */
     public function __construct(
-        MaskedQuoteIdToQuoteIdInterface $maskedQuoteIdToQuoteId,
+        MaskedQuoteIdToQuoteIdInterface $maskedQuoteId,
         CartRepositoryInterface $cartRepository,
         CreditCardBinInterfaceFactory $creditCardBinFactory,
-        CardTypeTransactionInterfaceFactory $cardTypeTransactionFactory,
-        ListInstallmentsManagementInterface $listInstallmentsManagement,
-        LoggerInterface $logger
+        CardTypeTransactionInterfaceFactory $cardTypeTransaction,
+        ListInstallmentsManagementInterface $listInstallments
     ) {
-        $this->maskedQuoteIdToQuoteId = $maskedQuoteIdToQuoteId;
+        $this->maskedQuoteId = $maskedQuoteId;
         $this->cartRepository = $cartRepository;
         $this->creditCardBinFactory = $creditCardBinFactory;
-        $this->cardTypeTransactionFactory = $cardTypeTransactionFactory;
-        $this->listInstallmentsManagement = $listInstallmentsManagement;
-        $this->logger = $logger;
+        $this->cardTypeTransaction = $cardTypeTransaction;
+        $this->listInstallments = $listInstallments;
     }
 
     /**
@@ -95,6 +86,8 @@ class ListInstallments implements ResolverInterface
      * @param array|null $args
      * @return array|\Magento\Framework\GraphQl\Query\Resolver\Value|mixed
      * @throws \Exception
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function resolve(
         Field $field,
@@ -103,7 +96,6 @@ class ListInstallments implements ResolverInterface
         array $value = null,
         array $args = null
     ) {
-        $this->logger->debug('ListInstallments resolver called with args: ' . json_encode($args));
         
         if (empty($args['input']) || !is_array($args['input'])) {
             throw new GraphQlInputException(__('Required parameter "input" is missing or invalid.'));
@@ -132,14 +124,12 @@ class ListInstallments implements ResolverInterface
                 $cartId = (string)$context->getUserId();
             } else {
                 try {
-                    $cartId = (string)$this->maskedQuoteIdToQuoteId->execute($cartId);
+                    $cartId = (string)$this->maskedQuoteId->execute($cartId);
                 } catch (\Exception $e) {
-                    $this->logger->error('Error converting masked quote ID: ' . $e->getMessage());
                     throw new GraphQlInputException(__('Could not find a cart with the provided cart_id.'));
                 }
             }
 
-            // Validar se o carrinho existe
             try {
                 $quote = $this->cartRepository->get((int)$cartId);
                 if (!$quote->getId()) {
@@ -153,7 +143,6 @@ class ListInstallments implements ResolverInterface
                 throw new GraphQlNoSuchEntityException(__('Cart with ID "%1" does not exist.', $cartId));
             }
 
-            // Verificar e validar o bin do cartão
             $creditCardBin = $input['credit_card_bin']['credit_card_bin'];
             if (!preg_match('/^\d+$/', $creditCardBin)) {
                 throw new GraphQlInputException(__('Invalid credit_card_bin format. Must contain only digits.'));
@@ -168,23 +157,20 @@ class ListInstallments implements ResolverInterface
             if (isset($input['card_type_transaction']) && 
                 isset($input['card_type_transaction']['card_type_transaction']) && 
                 !empty($input['card_type_transaction']['card_type_transaction'])) {
-                $cardTypeTransaction = $this->cardTypeTransactionFactory->create();
+                $cardTypeTransaction = $this->cardTypeTransaction->create();
                 $cardTypeTransaction->setCardTypeTransaction($input['card_type_transaction']['card_type_transaction']);
             }
 
-            $installmentList = $this->listInstallmentsManagement->generateListInstallments(
+            $installmentList = $this->listInstallments->generateListInstallments(
                 (int)$cartId,
                 $creditCardBinObj,
                 $cardTypeTransaction
             );
 
-            // Garantir que o resultado seja um array válido
             if (!is_array($installmentList)) {
-                $this->logger->error('Invalid installment list returned: ' . var_export($installmentList, true));
                 return [];
             }
             
-            // Formatar corretamente os dados para o schema GraphQL
             $formattedList = [];
             foreach ($installmentList as $installment) {
                 $item = [
@@ -196,7 +182,6 @@ class ListInstallments implements ResolverInterface
                     ]
                 ];
                 
-                // Adicionar fees se existirem
                 if (isset($installment['amount']['fees']) && isset($installment['amount']['fees']['buyer']) && 
                     isset($installment['amount']['fees']['buyer']['interest']) && 
                     isset($installment['amount']['fees']['buyer']['interest']['total'])) {
@@ -216,7 +201,6 @@ class ListInstallments implements ResolverInterface
         } catch (GraphQlInputException | GraphQlNoSuchEntityException $e) {
             throw $e;
         } catch (\Exception $e) {
-            $this->logger->critical('GraphQL error in ListInstallments: ' . $e->getMessage());
             throw new GraphQlInputException(__('Error retrieving installment options: %1', $e->getMessage()));
         }
     }

@@ -48,6 +48,8 @@ class SetDeepLinkPaymentData
      * @param array $paymentData
      * @return mixed
      * @throws GraphQlInputException
+     *
+     * @SuppressWarnings(PHPMD.UnusedFormalParameter)
      */
     public function afterExecute(
         SetPaymentMethodOnCart $subject,

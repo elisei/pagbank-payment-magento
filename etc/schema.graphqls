@@ -5,6 +5,9 @@ type Query {
     pagBankGetOrderPaymentInfo(
         input: PagBankGetOrderPaymentInfoInput! @doc(description: "Input parameters for retrieving order payment information")
     ): PagBankOrderPaymentInfo @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\GetOrderPaymentInfo") @doc(description: "Returns payment information for a PagBank order") @cache(cacheable: false)
+    pagBankPaymentConfigs(
+        input: PagBankPaymentConfigsInput @doc(description: "Input parameters for retrieving payment configurations")
+    ): PagBankPaymentConfigsOutput @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\GetPaymentConfigs") @doc(description: "Returns payment configurations for PagBank payment methods") @cache(cacheable: true, cacheIdentity: "PagBank\\PaymentMagento\\Model\\Resolver\\CacheIdCalculator")
 }
 
 type Mutation {
@@ -16,6 +19,66 @@ type Mutation {
 type ThreeDsSessionOutput {
     session_id: String!
     expires_at: String!
+}
+
+input PagBankPaymentConfigsInput @doc(description: "Input for retrieving payment configurations") {
+    store_id: Int @doc(description: "Store ID to retrieve payment configurations for")
+    method_code: String @doc(description: "Payment method code to filter by")
+}
+
+type PagBankPaymentConfigsOutput @doc(description: "Output data for payment configurations") {
+    items: [PagBankPaymentConfig!]! @doc(description: "An array of payment configurations")
+}
+
+type PagBankPaymentConfig @doc(description: "Payment configuration data") {
+    method_code: String! @doc(description: "Payment method code")
+    title: String! @doc(description: "Payment method title")
+    is_active: Boolean! @doc(description: "Whether the payment method is active")
+    instructions: String @doc(description: "Payment method instructions")
+    logo: PagBankPaymentLogo @doc(description: "Payment method logo information")
+    additional_data: PagBankPaymentAdditionalData @doc(description: "Additional payment method configuration data")
+}
+
+type PagBankPaymentLogo @doc(description: "Payment method logo information") {
+    url: String @doc(description: "URL of the logo image")
+    width: String @doc(description: "Width of the logo image")
+    height: String @doc(description: "Height of the logo image")
+    title: String @doc(description: "Title of the logo image")
+}
+
+type PagBankPaymentAdditionalData @doc(description: "Additional payment method configuration data") {
+    useCvv: Boolean @doc(description: "Whether CVV is required (credit card only)")
+    ccTypesMapper: [PagBankCcTypeMapper] @doc(description: "Credit card types mapping (credit card only)")
+    icons: [PagBankPaymentIcon] @doc(description: "Payment method icons (credit card only)")
+    tax_id_capture: Boolean @doc(description: "Whether tax ID capture is enabled")
+    phone_capture: Boolean @doc(description: "Whether phone capture is enabled")
+    name_capture: Boolean @doc(description: "Whether name capture is enabled")
+    expiration: String @doc(description: "Expiration time or date for the payment")
+    threeDs: PagBankThreeDsConfig @doc(description: "3DS configuration (credit card only)")
+    public_key: String @doc(description: "Public key for payment encryption (credit card only)")
+    ccVaultCode: String @doc(description: "Code for the vault payment method (credit card only)")
+}
+
+type PagBankCcTypeMapper @doc(description: "Credit card type mapping") {
+    code: String! @doc(description: "Credit card type code")
+    name: String! @doc(description: "Credit card type name")
+}
+
+type PagBankPaymentIcon @doc(description: "Payment method icon information") {
+    code: String @doc(description: "Icon code (e.g., VI, MC)")
+    url: String @doc(description: "URL of the icon image")
+    width: String @doc(description: "Width of the icon image")
+    height: String @doc(description: "Height of the icon image")
+    title: String @doc(description: "Title of the icon image")
+}
+
+type PagBankThreeDsConfig @doc(description: "3DS configuration") {
+    enable: Boolean @doc(description: "Whether 3DS is enabled")
+    enable_deb: Boolean @doc(description: "Whether 3DS for debit cards is enabled")
+    reject: Boolean @doc(description: "Whether to reject payments that fail 3DS authentication")
+    instruction: String @doc(description: "Instructions for 3DS authentication")
+    env: String @doc(description: "Environment for 3DS (SANDBOX or PROD)")
+    max_try_place: Int @doc(description: "Maximum number of attempts to place an order with 3DS")
 }
 
 input PagBankGetOrderPaymentInfoInput @doc(description: "Input for retrieving order payment information") {

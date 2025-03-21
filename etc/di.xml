@@ -10,6 +10,25 @@
  */
 -->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <!-- Interface Implementations -->
+    <preference for="PagBank\PaymentMagento\Api\Data\PagBankPaymentConfigInterface" type="PagBank\PaymentMagento\Model\Api\Data\PagBankPaymentConfig"/>
+    <preference for="PagBank\PaymentMagento\Api\PagBankPaymentConfigManagerInterface" type="PagBank\PaymentMagento\Model\Api\PagBankPaymentConfigManager"/>
+
+    <!-- GraphQL Resolvers -->
+    <type name="PagBank\PaymentMagento\Model\Resolver\GetPaymentConfigs">
+        <arguments>
+            <argument name="configManager" xsi:type="object">PagBank\PaymentMagento\Api\PagBankPaymentConfigManagerInterface</argument>
+            <argument name="storeRepository" xsi:type="object">Magento\Store\Api\StoreRepositoryInterface</argument>
+        </arguments>
+    </type>
+    
+    <!-- Cache ID Calculator for GraphQL Caching -->
+    <virtualType name="PagBank\PaymentMagento\Model\Resolver\CacheIdCalculator" type="Magento\Framework\GraphQl\Query\Resolver\IdentityInterface">
+        <arguments>
+            <argument name="cacheTag" xsi:type="string">pagbank_payment_config</argument>
+        </arguments>
+    </virtualType>
+
     <!-- Plugins for SetPaymentMethodOnCart -->
     <type name="Magento\QuoteGraphQl\Model\Cart\SetPaymentMethodOnCart">
         <!-- Plugin for Credit Card -->

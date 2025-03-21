@@ -77,41 +77,16 @@ class GuestListInstallments implements ResolverInterface
         array $value = null,
         array $args = null
     ) {
-        if (empty($args['input']) || !is_array($args['input'])) {
-            throw new GraphQlInputException(__(
-                'Required parameter "input" is missing.'
-            ));
-        }
-
+        $this->validateInput($args);
         $input = $args['input'];
-
-        if (!isset($input['cart_id']) || empty($input['cart_id'])) {
-            throw new GraphQlInputException(__(
-                'Required parameter "cart_id" is missing or empty.'
-            ));
-        }
-
-        if (!isset($input['credit_card_bin']) || empty($input['credit_card_bin']['credit_card_bin'])) {
-            throw new GraphQlInputException(__(
-                'Required parameter "credit_card_bin" is missing or empty.'
-            ));
-        }
+        
+        $this->validateCartId($input);
+        $this->validateCreditCardBin($input);
 
         try {
             $cartId = $input['cart_id'];
-
-            /** @var CreditCardBinInterface $creditCardBin */
-            $creditCardBin = $this->creditCardBinFactory->create();
-            $creditCardBin->setCreditCardBin($input['credit_card_bin']['credit_card_bin']);
-
-            /** @var CardTypeTransactionInterface|null $cardTypeTransaction */
-            $cardTypeTransaction = null;
-            if (isset($input['card_type_transaction']) && 
-                isset($input['card_type_transaction']['card_type_transaction']) && 
-                !empty($input['card_type_transaction']['card_type_transaction'])) {
-                $cardTypeTransaction = $this->cardTypeTransaction->create();
-                $cardTypeTransaction->setCardTypeTransaction($input['card_type_transaction']['card_type_transaction']);
-            }
+            $creditCardBin = $this->createCreditCardBinObject($input);
+            $cardTypeTransaction = $this->createCardTypeTransactionObject($input);
 
             $installmentList = $this->guestListInstall->generateListInstallments(
                 $cartId,
@@ -119,9 +94,143 @@ class GuestListInstallments implements ResolverInterface
                 $cardTypeTransaction
             );
 
-            return $installmentList;
+            return $this->formatInstallmentList($installmentList);
         } catch (\Exception $e) {
-            throw new GraphQlInputException(__($e->getMessage()));
+            throw new GraphQlInputException(__('Error retrieving installment options: %1', $e->getMessage()));
         }
+    }
+
+    /**
+     * Validate input parameter
+     *
+     * @param array|null $args
+     * @return void
+     * @throws GraphQlInputException
+     */
+    private function validateInput(?array $args): void
+    {
+        if (empty($args['input']) || !is_array($args['input'])) {
+            throw new GraphQlInputException(__(
+                'Required parameter "input" is missing.'
+            ));
+        }
+    }
+
+    /**
+     * Validate cart_id parameter
+     *
+     * @param array $input
+     * @return void
+     * @throws GraphQlInputException
+     */
+    private function validateCartId(array $input): void
+    {
+        if (!isset($input['cart_id']) || empty($input['cart_id'])) {
+            throw new GraphQlInputException(__(
+                'Required parameter "cart_id" is missing or empty.'
+            ));
+        }
+    }
+
+    /**
+     * Validate credit_card_bin parameter
+     *
+     * @param array $input
+     * @return void
+     * @throws GraphQlInputException
+     */
+    private function validateCreditCardBin(array $input): void
+    {
+        if (!isset($input['credit_card_bin']) || empty($input['credit_card_bin']['credit_card_bin'])) {
+            throw new GraphQlInputException(__(
+                'Required parameter "credit_card_bin" is missing or empty.'
+            ));
+        }
+        
+        $creditCardBin = $input['credit_card_bin']['credit_card_bin'];
+        if (!preg_match('/^\d+$/', $creditCardBin)) {
+            throw new GraphQlInputException(__(
+                'Invalid credit_card_bin format. Must contain only digits.'
+            ));
+        }
+    }
+
+    /**
+     * Create CreditCardBin object
+     *
+     * @param array $input
+     * @return CreditCardBinInterface
+     */
+    private function createCreditCardBinObject(array $input): CreditCardBinInterface
+    {
+        /** @var CreditCardBinInterface $creditCardBin */
+        $creditCardBin = $this->creditCardBinFactory->create();
+        $creditCardBin->setCreditCardBin($input['credit_card_bin']['credit_card_bin']);
+        
+        return $creditCardBin;
+    }
+
+    /**
+     * Create CardTypeTransaction object if present in input
+     *
+     * @param array $input
+     * @return CardTypeTransactionInterface|null
+     */
+    private function createCardTypeTransactionObject(array $input): ?CardTypeTransactionInterface
+    {
+        if (!isset($input['card_type_transaction']) || 
+            !isset($input['card_type_transaction']['card_type_transaction']) || 
+            empty($input['card_type_transaction']['card_type_transaction'])) {
+            return null;
+        }
+        
+        /** @var CardTypeTransactionInterface $cardTypeTransaction */
+        $cardTypeTransaction = $this->cardTypeTransaction->create();
+        $cardTypeTransaction->setCardTypeTransaction($input['card_type_transaction']['card_type_transaction']);
+        
+        return $cardTypeTransaction;
+    }
+    
+    /**
+     * Format installment list for GraphQL response
+     *
+     * @param array $installmentList
+     * @return array
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     */
+    private function formatInstallmentList($installmentList): array
+    {
+        if (!is_array($installmentList)) {
+            return [];
+        }
+        
+        $formattedList = [];
+        foreach ($installmentList as $installment) {
+            $item = [
+                'installments' => isset($installment['installments']) ? (int)$installment['installments'] : 1,
+                'installment_value' => isset($installment['installment_value']) ? (int)$installment['installment_value'] : 0,
+                'interest_free' => isset($installment['interest_free']) ? (bool)$installment['interest_free'] : true,
+                'amount' => [
+                    'value' => isset($installment['amount']['value']) ? (int)$installment['amount']['value'] : 0
+                ]
+            ];
+            
+            if (isset($installment['amount']['fees']) && isset($installment['amount']['fees']['buyer']) && 
+                isset($installment['amount']['fees']['buyer']['interest']) && 
+                isset($installment['amount']['fees']['buyer']['interest']['total'])) {
+                $item['amount']['fees'] = [
+                    'buyer' => [
+                        'interest' => [
+                            'total' => (int)$installment['amount']['fees']['buyer']['interest']['total']
+                        ]
+                    ]
+                ];
+            }
+            
+            $formattedList[] = $item;
+        }
+        
+        return $formattedList;
     }
 }

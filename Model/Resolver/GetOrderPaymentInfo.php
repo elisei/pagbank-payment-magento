@@ -24,6 +24,9 @@ use Magento\Sales\Model\Order\Payment;
 
 /**
  * Class GetOrderPaymentInfo Resolver - Retrieves payment information for a PagBank order.
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
+ * @SuppressWarnings(PHPMD.ExcessiveClassComplexity)
  */
 class GetOrderPaymentInfo implements ResolverInterface
 {
@@ -70,62 +73,15 @@ class GetOrderPaymentInfo implements ResolverInterface
         array $value = null,
         array $args = null
     ) {
-        if (!$context->getUserId() && empty($args['input']['guest_email'])) {
-            throw new GraphQlAuthorizationException(__('The current customer isn\'t authorized.'));
-        }
-
-        if (empty($args['input']) || !is_array($args['input'])) {
-            throw new GraphQlInputException(__('Required parameter "input" is missing or invalid.'));
-        }
-
+        $this->validateUserAndInput($context, $args);
         $input = $args['input'];
-        
-        if (empty($input['order_id']) && empty($input['increment_id'])) {
-            throw new GraphQlInputException(__('Required parameter "order_id" or "increment_id" is missing.'));
-        }
+        $this->validateOrderParameters($input);
 
         try {
-            $order = null;
+            $order = $this->getOrder($input);
+            $this->validateUserAccess($context, $order, $input);
+            $payment = $this->validatePayment($order);
             
-            if (!empty($input['order_id'])) {
-                $order = $this->orderRepository->get((int)$input['order_id']);
-            } elseif (!empty($input['increment_id'])) {
-                $searchCriteria = $this->searchCriteria
-                    ->addFilter('increment_id', $input['increment_id'])
-                    ->create();
-                $orders = $this->orderRepository->getList($searchCriteria)->getItems();
-                
-                if (empty($orders)) {
-                    throw new GraphQlNoSuchEntityException(__('Order with increment ID "%1" does not exist.', $input['increment_id']));
-                }
-                
-                $order = reset($orders);
-            }
-
-            if (!$order || !$order->getEntityId()) {
-                throw new GraphQlNoSuchEntityException(__('Order does not exist.'));
-            }
-
-            if ($context->getUserId() && (int)$context->getUserId() !== (int)$order->getCustomerId()) {
-                throw new GraphQlAuthorizationException(__('The current customer does not have access to this order.'));
-            }
-
-            if (!$context->getUserId() && !empty($input['guest_email'])) {
-                if ($input['guest_email'] !== $order->getCustomerEmail()) {
-                    throw new GraphQlAuthorizationException(__('The provided email does not match the order email.'));
-                }
-            }
-
-            $payment = $order->getPayment();
-            if (!$payment) {
-                throw new GraphQlNoSuchEntityException(__('Payment information not found for this order.'));
-            }
-            
-            $method = $payment->getMethod();
-            if (!str_contains($method, 'pagbank_paymentmagento')) {
-                throw new GraphQlNoSuchEntityException(__('Order was not processed with PagBank.'));
-            }
-
             return $this->formatPaymentDetails($order, $payment);
             
         } catch (GraphQlNoSuchEntityException | GraphQlAuthorizationException | GraphQlInputException $e) {
@@ -133,6 +89,149 @@ class GetOrderPaymentInfo implements ResolverInterface
         } catch (\Exception $e) {
             throw new GraphQlInputException(__('Error retrieving payment information: %1', $e->getMessage()));
         }
+    }
+
+    /**
+     * Validate user authorization and input parameter
+     * 
+     * @param \Magento\Framework\GraphQl\Query\Resolver\ContextInterface $context
+     * @param array|null $args
+     * @return void
+     * @throws GraphQlAuthorizationException
+     * @throws GraphQlInputException
+     */
+    private function validateUserAndInput($context, ?array $args): void
+    {
+        if (!$context->getUserId() && empty($args['input']['guest_email'])) {
+            throw new GraphQlAuthorizationException(__('The current customer isn\'t authorized.'));
+        }
+
+        if (empty($args['input']) || !is_array($args['input'])) {
+            throw new GraphQlInputException(__('Required parameter "input" is missing or invalid.'));
+        }
+    }
+
+    /**
+     * Validate order parameters
+     * 
+     * @param array $input
+     * @return void
+     * @throws GraphQlInputException
+     */
+    private function validateOrderParameters(array $input): void
+    {
+        if (empty($input['order_id']) && empty($input['increment_id'])) {
+            throw new GraphQlInputException(__('Required parameter "order_id" or "increment_id" is missing.'));
+        }
+    }
+
+    /**
+     * Get order by ID or increment ID
+     * 
+     * @param array $input
+     * @return \Magento\Sales\Api\Data\OrderInterface
+     * @throws GraphQlNoSuchEntityException
+     */
+    private function getOrder(array $input)
+    {
+        if (!empty($input['order_id'])) {
+            return $this->getOrderById((int)$input['order_id']);
+        }
+        
+        return $this->getOrderByIncrementId($input['increment_id']);
+    }
+
+    /**
+     * Get order by ID
+     * 
+     * @param int $orderId
+     * @return \Magento\Sales\Api\Data\OrderInterface
+     * @throws GraphQlNoSuchEntityException
+     */
+    private function getOrderById(int $orderId)
+    {
+        try {
+            $order = $this->orderRepository->get($orderId);
+            
+            if (!$order || !$order->getEntityId()) {
+                throw new GraphQlNoSuchEntityException(__('Order does not exist.'));
+            }
+            
+            return $order;
+        } catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
+            throw new GraphQlNoSuchEntityException(__('Order with ID "%1" does not exist.', $orderId));
+        }
+    }
+
+    /**
+     * Get order by increment ID
+     * 
+     * @param string $incrementId
+     * @return \Magento\Sales\Api\Data\OrderInterface
+     * @throws GraphQlNoSuchEntityException
+     */
+    private function getOrderByIncrementId(string $incrementId)
+    {
+        $searchCriteria = $this->searchCriteria
+            ->addFilter('increment_id', $incrementId)
+            ->create();
+        $orders = $this->orderRepository->getList($searchCriteria)->getItems();
+        
+        if (empty($orders)) {
+            throw new GraphQlNoSuchEntityException(__('Order with increment ID "%1" does not exist.', $incrementId));
+        }
+        
+        $order = reset($orders);
+        
+        if (!$order || !$order->getEntityId()) {
+            throw new GraphQlNoSuchEntityException(__('Order does not exist.'));
+        }
+        
+        return $order;
+    }
+
+    /**
+     * Validate user access to order
+     * 
+     * @param \Magento\Framework\GraphQl\Query\Resolver\ContextInterface $context
+     * @param \Magento\Sales\Api\Data\OrderInterface $order
+     * @param array $input
+     * @return void
+     * @throws GraphQlAuthorizationException
+     */
+    private function validateUserAccess($context, $order, array $input): void
+    {
+        if ($context->getUserId() && (int)$context->getUserId() !== (int)$order->getCustomerId()) {
+            throw new GraphQlAuthorizationException(__('The current customer does not have access to this order.'));
+        }
+
+        if (!$context->getUserId() && !empty($input['guest_email'])) {
+            if ($input['guest_email'] !== $order->getCustomerEmail()) {
+                throw new GraphQlAuthorizationException(__('The provided email does not match the order email.'));
+            }
+        }
+    }
+
+    /**
+     * Validate payment information exists and is from PagBank
+     * 
+     * @param \Magento\Sales\Api\Data\OrderInterface $order
+     * @return Payment
+     * @throws GraphQlNoSuchEntityException
+     */
+    private function validatePayment($order): Payment
+    {
+        $payment = $order->getPayment();
+        if (!$payment) {
+            throw new GraphQlNoSuchEntityException(__('Payment information not found for this order.'));
+        }
+        
+        $method = $payment->getMethod();
+        if (!str_contains($method, 'pagbank_paymentmagento')) {
+            throw new GraphQlNoSuchEntityException(__('Order was not processed with PagBank.'));
+        }
+        
+        return $payment;
     }
 
     /**

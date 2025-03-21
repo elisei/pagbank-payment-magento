@@ -27,6 +27,8 @@ use PagBank\PaymentMagento\Api\ListInstallmentsManagementInterface;
 
 /**
  * Class ListInstallments Resolver - Get available installments for credit card.
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class ListInstallments implements ResolverInterface
 {
@@ -96,112 +98,193 @@ class ListInstallments implements ResolverInterface
         array $value = null,
         array $args = null
     ) {
+        $this->validateInput($args);
+        $input = $args['input'];
         
+        // Validate cart ID or use customer ID
+        $cartId = $this->getCartId($context, $input);
+        
+        // Validate credit card bin
+        $creditCardBin = $this->validateAndCreateCreditCardBin($input);
+        
+        try {
+            // Get and validate quote
+            $this->getValidQuote($cartId);
+            
+            // Create card type transaction if provided
+            $cardTypeTransaction = $this->createCardTypeTransaction($input);
+            
+            // Generate installment list
+            $installmentList = $this->listInstallments->generateListInstallments(
+                (int)$cartId,
+                $creditCardBin,
+                $cardTypeTransaction
+            );
+            
+            // Format the response
+            return $this->formatInstallmentList($installmentList);
+            
+        } catch (GraphQlInputException | GraphQlNoSuchEntityException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            throw new GraphQlInputException(__('Error retrieving installment options: %1', $e->getMessage()));
+        }
+    }
+    
+    /**
+     * Validate input parameters
+     *
+     * @param array|null $args
+     * @return void
+     * @throws GraphQlInputException
+     */
+    private function validateInput(?array $args): void
+    {
         if (empty($args['input']) || !is_array($args['input'])) {
             throw new GraphQlInputException(__('Required parameter "input" is missing or invalid.'));
         }
-
-        $input = $args['input'];
-        $cartId = null;
+    }
+    
+    /**
+     * Get cart ID from context or input
+     *
+     * @param \Magento\Framework\GraphQl\Query\Resolver\ContextInterface $context
+     * @param array $input
+     * @return string
+     * @throws GraphQlInputException
+     */
+    private function getCartId($context, array $input): string
+    {
+        $cartId = $input['cart_id'] ?? null;
         
-        if (isset($input['cart_id']) && !empty($input['cart_id'])) {
-            $cartId = $input['cart_id'];
-        }
-
         if (!$context->getUserId() && empty($cartId)) {
             throw new GraphQlInputException(__('Required parameter "cart_id" is missing for guest cart.'));
         }
-
+        
+        if (!$cartId) {
+            return (string)$context->getUserId();
+        }
+        
+        try {
+            return (string)$this->maskedQuoteId->execute($cartId);
+        } catch (\Exception $e) {
+            throw new GraphQlInputException(__('Could not find a cart with the provided cart_id.'));
+        }
+    }
+    
+    /**
+     * Validate and create credit card bin object
+     *
+     * @param array $input
+     * @return CreditCardBinInterface
+     * @throws GraphQlInputException
+     */
+    private function validateAndCreateCreditCardBin(array $input): CreditCardBinInterface
+    {
         if (!isset($input['credit_card_bin']) 
             || !isset($input['credit_card_bin']['credit_card_bin']) 
             || empty($input['credit_card_bin']['credit_card_bin'])
         ) {
             throw new GraphQlInputException(__('Required parameter "credit_card_bin" is missing or empty.'));
         }
-
+        
+        $creditCardBin = $input['credit_card_bin']['credit_card_bin'];
+        if (!preg_match('/^\d+$/', $creditCardBin)) {
+            throw new GraphQlInputException(__('Invalid credit_card_bin format. Must contain only digits.'));
+        }
+        
+        $creditCardBinObj = $this->creditCardBinFactory->create();
+        $creditCardBinObj->setCreditCardBin($creditCardBin);
+        
+        return $creditCardBinObj;
+    }
+    
+    /**
+     * Get and validate quote
+     *
+     * @param string $cartId
+     * @return \Magento\Quote\Api\Data\CartInterface
+     * @throws GraphQlNoSuchEntityException
+     * @throws GraphQlInputException
+     */
+    private function getValidQuote(string $cartId)
+    {
         try {
-            if (!$cartId) {
-                $cartId = (string)$context->getUserId();
-            } else {
-                try {
-                    $cartId = (string)$this->maskedQuoteId->execute($cartId);
-                } catch (\Exception $e) {
-                    throw new GraphQlInputException(__('Could not find a cart with the provided cart_id.'));
-                }
-            }
-
-            try {
-                $quote = $this->cartRepository->get((int)$cartId);
-                if (!$quote->getId()) {
-                    throw new GraphQlNoSuchEntityException(__('Cart with ID "%1" does not exist.', $cartId));
-                }
-                
-                if (!$quote->getItemsCount()) {
-                    throw new GraphQlInputException(__('Cart is empty.'));
-                }
-            } catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
+            $quote = $this->cartRepository->get((int)$cartId);
+            if (!$quote->getId()) {
                 throw new GraphQlNoSuchEntityException(__('Cart with ID "%1" does not exist.', $cartId));
             }
-
-            $creditCardBin = $input['credit_card_bin']['credit_card_bin'];
-            if (!preg_match('/^\d+$/', $creditCardBin)) {
-                throw new GraphQlInputException(__('Invalid credit_card_bin format. Must contain only digits.'));
-            }
-
-            /** @var CreditCardBinInterface $creditCardBinObj */
-            $creditCardBinObj = $this->creditCardBinFactory->create();
-            $creditCardBinObj->setCreditCardBin($creditCardBin);
-
-            /** @var CardTypeTransactionInterface|null $cardTypeTransaction */
-            $cardTypeTransaction = null;
-            if (isset($input['card_type_transaction']) && 
-                isset($input['card_type_transaction']['card_type_transaction']) && 
-                !empty($input['card_type_transaction']['card_type_transaction'])) {
-                $cardTypeTransaction = $this->cardTypeTransaction->create();
-                $cardTypeTransaction->setCardTypeTransaction($input['card_type_transaction']['card_type_transaction']);
-            }
-
-            $installmentList = $this->listInstallments->generateListInstallments(
-                (int)$cartId,
-                $creditCardBinObj,
-                $cardTypeTransaction
-            );
-
-            if (!is_array($installmentList)) {
-                return [];
+            
+            if (!$quote->getItemsCount()) {
+                throw new GraphQlInputException(__('Cart is empty.'));
             }
             
-            $formattedList = [];
-            foreach ($installmentList as $installment) {
-                $item = [
-                    'installments' => isset($installment['installments']) ? (int)$installment['installments'] : 1,
-                    'installment_value' => isset($installment['installment_value']) ? (int)$installment['installment_value'] : 0,
-                    'interest_free' => isset($installment['interest_free']) ? (bool)$installment['interest_free'] : true,
-                    'amount' => [
-                        'value' => isset($installment['amount']['value']) ? (int)$installment['amount']['value'] : 0
+            return $quote;
+        } catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
+            throw new GraphQlNoSuchEntityException(__('Cart with ID "%1" does not exist.', $cartId));
+        }
+    }
+    
+    /**
+     * Create CardTypeTransaction object if present in input
+     *
+     * @param array $input
+     * @return CardTypeTransactionInterface|null
+     */
+    private function createCardTypeTransaction(array $input): ?CardTypeTransactionInterface
+    {
+        if (!isset($input['card_type_transaction']) || 
+            !isset($input['card_type_transaction']['card_type_transaction']) || 
+            empty($input['card_type_transaction']['card_type_transaction'])) {
+            return null;
+        }
+        
+        $cardTypeTransaction = $this->cardTypeTransaction->create();
+        $cardTypeTransaction->setCardTypeTransaction($input['card_type_transaction']['card_type_transaction']);
+        
+        return $cardTypeTransaction;
+    }
+    
+    /**
+     * Format installment list for GraphQL response
+     *
+     * @param array $installmentList
+     * @return array
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     */
+    private function formatInstallmentList($installmentList): array
+    {
+        if (!is_array($installmentList)) {
+            return [];
+        }
+        
+        $formattedList = [];
+        foreach ($installmentList as $installment) {
+            $item = [
+                'installments' => isset($installment['installments']) ? (int)$installment['installments'] : 1,
+                'installment_value' => isset($installment['installment_value']) ? (int)$installment['installment_value'] : 0,
+                'interest_free' => isset($installment['interest_free']) ? (bool)$installment['interest_free'] : true,
+                'amount' => [
+                    'value' => isset($installment['amount']['value']) ? (int)$installment['amount']['value'] : 0
+                ]
+            ];
+            
+            if (isset($installment['amount']['fees']) && isset($installment['amount']['fees']['buyer']) && 
+                isset($installment['amount']['fees']['buyer']['interest']) && 
+                isset($installment['amount']['fees']['buyer']['interest']['total'])) {
+                $item['amount']['fees'] = [
+                    'buyer' => [
+                        'interest' => [
+                            'total' => (int)$installment['amount']['fees']['buyer']['interest']['total']
+                        ]
                     ]
                 ];
-                
-                if (isset($installment['amount']['fees']) && isset($installment['amount']['fees']['buyer']) && 
-                    isset($installment['amount']['fees']['buyer']['interest']) && 
-                    isset($installment['amount']['fees']['buyer']['interest']['total'])) {
-                    $item['amount']['fees'] = [
-                        'buyer' => [
-                            'interest' => [
-                                'total' => (int)$installment['amount']['fees']['buyer']['interest']['total']
-                            ]
-                        ]
-                    ];
-                }
-                
-                $formattedList[] = $item;
             }
-
-            return $formattedList;
-        } catch (GraphQlInputException | GraphQlNoSuchEntityException $e) {
-            throw $e;
-        } catch (\Exception $e) {
-            throw new GraphQlInputException(__('Error retrieving installment options: %1', $e->getMessage()));
+            
+            $formattedList[] = $item;
         }
+        
+        return $formattedList;
     }
 }

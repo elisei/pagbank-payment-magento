@@ -2,6 +2,9 @@ type Query {
     pagBankThreeDsSession: ThreeDsSessionOutput @resolver(class: "PagBank\\PaymentMagento\\Model\\Resolver\\ThreeDsSession") @cache(cacheable: false)
     pagBankListInstallments(input: PagBankListInstallmentsInput!): [PagBankInstallmentPlan]! @resolver(class: "PagBank\\PaymentMagento\\Model\\Resolver\\ListInstallments") @cache(cacheable: false)
     pagBankGuestListInstallments(input: PagBankGuestListInstallmentsInput!): [PagBankInstallmentPlan]! @resolver(class: "PagBank\\PaymentMagento\\Model\\Resolver\\GuestListInstallments") @cache(cacheable: false)
+    pagBankGetOrderPaymentInfo(
+        input: PagBankGetOrderPaymentInfoInput! @doc(description: "Input parameters for retrieving order payment information")
+    ): PagBankOrderPaymentInfo @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\GetOrderPaymentInfo") @doc(description: "Returns payment information for a PagBank order") @cache(cacheable: false)
 }
 
 type Mutation {
@@ -13,12 +16,6 @@ type Mutation {
 type ThreeDsSessionOutput {
     session_id: String!
     expires_at: String!
-}
-
-type Query {
-    pagBankGetOrderPaymentInfo(
-        input: PagBankGetOrderPaymentInfoInput! @doc(description: "Input parameters for retrieving order payment information")
-    ): PagBankOrderPaymentInfo @resolver(class: "\\PagBank\\PaymentMagento\\Model\\Resolver\\GetOrderPaymentInfo") @doc(description: "Returns payment information for a PagBank order") @cache(cacheable: false)
 }
 
 input PagBankGetOrderPaymentInfoInput @doc(description: "Input for retrieving order payment information") {
@@ -171,11 +168,6 @@ input PagBankGuestInterestInput {
 
 input PagBankCreateVaultTokenInput {
     encrypted_card: String!
-}
-
-type ThreeDsSessionOutput {
-    session_id: String!
-    expires_at: String!
 }
 
 type PagBankInstallmentPlan {

@@ -29,6 +29,8 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Class 3ds Session - Get Session for Checkout 3ds on PagBank.
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class ThreeDsSession implements ThreeDsSessionInterface
 {
@@ -92,6 +94,8 @@ class ThreeDsSession implements ThreeDsSessionInterface
      * @inheritdoc
      * @throws InputException
      * @throws NoSuchEntityException
+     * 
+     * @SuppressWarnings(PHPMD.ElseExpression)
      */
     public function getSession(): ThreeDsSessionDataInterface
     {

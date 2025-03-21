@@ -19,22 +19,24 @@ use Magento\Framework\GraphQl\Query\ResolverInterface;
 use Magento\Framework\GraphQl\Schema\Type\ResolveInfo;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\CartTotalRepositoryInterface;
-use Magento\Quote\Model\QuoteIdMaskFactory;
+use Magento\Quote\Model\MaskedQuoteIdToQuoteIdInterface;
 use PagBank\PaymentMagento\Api\Data\CreditCardBinInterface;
 use PagBank\PaymentMagento\Api\Data\CreditCardBinInterfaceFactory;
 use PagBank\PaymentMagento\Api\Data\InstallmentSelectedInterface;
 use PagBank\PaymentMagento\Api\Data\InstallmentSelectedInterfaceFactory;
-use PagBank\PaymentMagento\Api\GuestInterestManagementInterface;
+use PagBank\PaymentMagento\Api\InterestManagementInterface;
 
 /**
  * Class GuestApplyInterest Resolver - Calculate and apply interest to guest cart for selected installment.
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
  */
 class GuestApplyInterest implements ResolverInterface
 {
     /**
-     * @var QuoteIdMaskFactory
+     * @var MaskedQuoteIdToQuoteIdInterface
      */
-    private $quoteIdMaskFactory;
+    private $maskedQuote;
 
     /**
      * @var CartRepositoryInterface
@@ -57,32 +59,32 @@ class GuestApplyInterest implements ResolverInterface
     private $installmentSelected;
 
     /**
-     * @var GuestInterestManagementInterface
+     * @var InterestManagementInterface
      */
-    private $guestInterest;
+    private $interestManagement;
 
     /**
-     * @param QuoteIdMaskFactory $quoteIdMaskFactory
+     * @param MaskedQuoteIdToQuoteIdInterface $maskedQuote
      * @param CartRepositoryInterface $cartRepository
      * @param CartTotalRepositoryInterface $cartTotalRepository
      * @param CreditCardBinInterfaceFactory $creditCardBinFactory
      * @param InstallmentSelectedInterfaceFactory $installmentSelected
-     * @param GuestInterestManagementInterface $guestInterest
+     * @param InterestManagementInterface $interestManagement
      */
     public function __construct(
-        QuoteIdMaskFactory $quoteIdMaskFactory,
+        MaskedQuoteIdToQuoteIdInterface $maskedQuote,
         CartRepositoryInterface $cartRepository,
         CartTotalRepositoryInterface $cartTotalRepository,
         CreditCardBinInterfaceFactory $creditCardBinFactory,
         InstallmentSelectedInterfaceFactory $installmentSelected,
-        GuestInterestManagementInterface $guestInterest
+        InterestManagementInterface $interestManagement
     ) {
-        $this->quoteIdMaskFactory = $quoteIdMaskFactory;
+        $this->maskedQuote = $maskedQuote;
         $this->cartRepository = $cartRepository;
         $this->cartTotalRepository = $cartTotalRepository;
         $this->creditCardBinFactory = $creditCardBinFactory;
         $this->installmentSelected = $installmentSelected;
-        $this->guestInterest = $guestInterest;
+        $this->interestManagement = $interestManagement;
     }
 
     /**
@@ -105,17 +107,116 @@ class GuestApplyInterest implements ResolverInterface
         array $value = null,
         array $args = null
     ) {
+        $this->validateInput($args);
+        $input = $args['input'];
         
+        try {
+            $maskedCartId = $this->validateCartId($input);
+            $cartId = $this->getCartIdFromMaskedId($maskedCartId);
+            $quote = $this->getValidQuote($cartId);
+            
+            $creditCardBin = $this->validateAndCreateCreditCardBin($input);
+            $installmentSelected = $this->validateAndCreateInstallmentSelected($input);
+
+            $this->interestManagement->generatePagBankInterest(
+                (int)$cartId,
+                $creditCardBin,
+                $installmentSelected
+            );
+
+            return [
+                'cart' => [
+                    'model' => $quote,
+                ]
+            ];
+        } catch (GraphQlInputException | GraphQlNoSuchEntityException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            throw new GraphQlInputException(__('Error applying interest: %1', $e->getMessage()));
+        }
+    }
+
+    /**
+     * Validate input parameters
+     *
+     * @param array|null $args
+     * @return void
+     * @throws GraphQlInputException
+     */
+    private function validateInput(?array $args): void
+    {
         if (empty($args['input']) || !is_array($args['input'])) {
             throw new GraphQlInputException(__('Required parameter "input" is missing or invalid.'));
         }
+    }
 
-        $input = $args['input'];
-
-        if (!isset($input['cart_id']) || empty($input['cart_id'])) {
-            throw new GraphQlInputException(__('Required parameter "cart_id" is missing or empty.'));
+    /**
+     * Validate cart ID
+     *
+     * @param array $input
+     * @return string
+     * @throws GraphQlInputException
+     */
+    private function validateCartId(array $input): string
+    {
+        if (empty($input['cart_id'])) {
+            throw new GraphQlInputException(__('Required parameter "cart_id" is missing.'));
         }
 
+        return $input['cart_id'];
+    }
+
+    /**
+     * Get cart ID from masked ID
+     *
+     * @param string $maskedCartId
+     * @return string
+     * @throws GraphQlInputException
+     */
+    private function getCartIdFromMaskedId(string $maskedCartId): string
+    {
+        try {
+            return (string)$this->maskedQuote->execute($maskedCartId);
+        } catch (\Exception $e) {
+            throw new GraphQlInputException(__('Could not find a cart with the provided cart_id.'));
+        }
+    }
+
+    /**
+     * Get and validate quote
+     *
+     * @param string $cartId
+     * @return \Magento\Quote\Api\Data\CartInterface
+     * @throws GraphQlNoSuchEntityException
+     * @throws GraphQlInputException
+     */
+    private function getValidQuote(string $cartId)
+    {
+        try {
+            $quote = $this->cartRepository->get((int)$cartId);
+            if (!$quote->getId()) {
+                throw new GraphQlNoSuchEntityException(__('Cart with ID "%1" does not exist.', $cartId));
+            }
+            
+            if (!$quote->getItemsCount()) {
+                throw new GraphQlInputException(__('Cart is empty.'));
+            }
+
+            return $quote;
+        } catch (\Magento\Framework\Exception\NoSuchEntityException $e) {
+            throw new GraphQlNoSuchEntityException(__('Cart with ID "%1" does not exist.', $cartId));
+        }
+    }
+
+    /**
+     * Validate and create credit card bin object
+     *
+     * @param array $input
+     * @return CreditCardBinInterface
+     * @throws GraphQlInputException
+     */
+    private function validateAndCreateCreditCardBin(array $input): CreditCardBinInterface
+    {
         if (!isset($input['credit_card_bin']) 
             || !isset($input['credit_card_bin']['credit_card_bin']) 
             || empty($input['credit_card_bin']['credit_card_bin'])
@@ -123,6 +224,27 @@ class GuestApplyInterest implements ResolverInterface
             throw new GraphQlInputException(__('Required parameter "credit_card_bin" is missing or empty.'));
         }
 
+        $creditCardBin = $input['credit_card_bin']['credit_card_bin'];
+        if (!preg_match('/^\d+$/', $creditCardBin)) {
+            throw new GraphQlInputException(__('Invalid credit_card_bin format. Must contain only digits.'));
+        }
+
+        /** @var CreditCardBinInterface $creditCardBinObj */
+        $creditCardBinObj = $this->creditCardBinFactory->create();
+        $creditCardBinObj->setCreditCardBin($creditCardBin);
+
+        return $creditCardBinObj;
+    }
+
+    /**
+     * Validate and create installment selected object
+     *
+     * @param array $input
+     * @return InstallmentSelectedInterface
+     * @throws GraphQlInputException
+     */
+    private function validateAndCreateInstallmentSelected(array $input): InstallmentSelectedInterface
+    {
         if (!isset($input['installment_selected']) 
             || !isset($input['installment_selected']['installment_selected']) 
             || empty($input['installment_selected']['installment_selected'])
@@ -130,54 +252,15 @@ class GuestApplyInterest implements ResolverInterface
             throw new GraphQlInputException(__('Required parameter "installment_selected" is missing or empty.'));
         }
 
-        try {
-            $cartId = $input['cart_id'];
-            if (empty($cartId)) {
-                throw new GraphQlInputException(__('Invalid cart_id provided.'));
-            }
-
-            $creditCardBin = $input['credit_card_bin']['credit_card_bin'];
-            if (!preg_match('/^\d+$/', $creditCardBin)) {
-                throw new GraphQlInputException(__('Invalid credit_card_bin format. Must contain only digits.'));
-            }
-
-            /** @var CreditCardBinInterface $creditCardBinObj */
-            $creditCardBinObj = $this->creditCardBinFactory->create();
-            $creditCardBinObj->setCreditCardBin($creditCardBin);
-
-            $installmentSelected = (int)$input['installment_selected']['installment_selected'];
-            if ($installmentSelected <= 0) {
-                throw new GraphQlInputException(__('Invalid installment number. Must be a positive integer.'));
-            }
-
-            /** @var InstallmentSelectedInterface $insSelectedObj */
-            $insSelectedObj = $this->installmentSelected->create();
-            $insSelectedObj->setInstallmentSelected($installmentSelected);
-
-            $this->guestInterest->generatePagBankInterest(
-                $cartId,
-                $creditCardBinObj,
-                $insSelectedObj
-            );
-
-            $quoteIdMask = $this->quoteIdMaskFactory->create()->load($cartId, 'masked_id');
-            if (!$quoteIdMask->getQuoteId()) {
-                throw new GraphQlNoSuchEntityException(__('Cart with ID "%1" does not exist.', $cartId));
-            }
-            
-            $quoteId = $quoteIdMask->getQuoteId();
-            $quote = $this->cartRepository->get($quoteId);
-
-            return [
-                'cart' => [
-                    'model' => $quote,
-                ]
-            ];
-
-        } catch (GraphQlInputException | GraphQlNoSuchEntityException $e) {
-            throw $e;
-        } catch (\Exception $e) {
-            throw new GraphQlInputException(__('Error applying interest to guest cart: %1', $e->getMessage()));
+        $installmentSelected = (int)$input['installment_selected']['installment_selected'];
+        if ($installmentSelected <= 0) {
+            throw new GraphQlInputException(__('Invalid installment number. Must be a positive integer.'));
         }
+
+        /** @var InstallmentSelectedInterface $insSelectedObj */
+        $insSelectedObj = $this->installmentSelected->create();
+        $insSelectedObj->setInstallmentSelected($installmentSelected);
+
+        return $insSelectedObj;
     }
 }

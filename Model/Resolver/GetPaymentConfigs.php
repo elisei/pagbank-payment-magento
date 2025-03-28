@@ -15,6 +15,7 @@ namespace PagBank\PaymentMagento\Model\Resolver;
 use Magento\Framework\GraphQl\Config\Element\Field;
 use Magento\Framework\GraphQl\Exception\GraphQlInputException;
 use Magento\Framework\GraphQl\Query\ResolverInterface;
+use Magento\Framework\GraphQl\Query\Resolver\IdentityInterface;
 use Magento\Framework\GraphQl\Schema\Type\ResolveInfo;
 use Magento\Store\Api\StoreRepositoryInterface;
 use PagBank\PaymentMagento\Api\PagBankPaymentConfigManagerInterface;
@@ -22,7 +23,7 @@ use PagBank\PaymentMagento\Api\PagBankPaymentConfigManagerInterface;
 /**
  * Class GetPaymentConfigs Resolver - Retrieves payment configurations for PagBank methods.
  */
-class GetPaymentConfigs implements ResolverInterface
+class GetPaymentConfigs implements ResolverInterface, IdentityInterface
 {
     /**
      * @var PagBankPaymentConfigManagerInterface
@@ -131,5 +132,23 @@ class GetPaymentConfigs implements ResolverInterface
         }
         
         return $result;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function getIdentities(array $resolvedData): array
+    {
+        $identities = ['pagbank_payment_config'];
+        
+        if (isset($resolvedData['items']) && is_array($resolvedData['items'])) {
+            foreach ($resolvedData['items'] as $config) {
+                if (isset($config['method_code'])) {
+                    $identities[] = 'pagbank_payment_config_' . $config['method_code'];
+                }
+            }
+        }
+        
+        return $identities;
     }
 }

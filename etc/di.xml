@@ -21,13 +21,6 @@
             <argument name="storeRepository" xsi:type="object">Magento\Store\Api\StoreRepositoryInterface</argument>
         </arguments>
     </type>
-    
-    <!-- Cache ID Calculator for GraphQL Caching -->
-    <virtualType name="PagBank\PaymentMagento\Model\Resolver\CacheIdCalculator" type="Magento\Framework\GraphQl\Query\Resolver\IdentityInterface">
-        <arguments>
-            <argument name="cacheTag" xsi:type="string">pagbank_payment_config</argument>
-        </arguments>
-    </virtualType>
 
     <!-- Plugins for SetPaymentMethodOnCart -->
     <type name="Magento\QuoteGraphQl\Model\Cart\SetPaymentMethodOnCart">

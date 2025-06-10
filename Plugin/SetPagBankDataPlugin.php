@@ -103,14 +103,16 @@ class SetPagBankDataPlugin
         $payment = $proceed($cart, $paymentData);
         
         $shortCode = str_replace(self::METHOD_PREFIX, '', $methodCode);
-        
-        $pagBankMethodData = $paymentData[$paymentData['code']] ?? [];
+
+        $pagBankMethodData = $paymentData[$methodCode] ?? [];
         
         if (empty($pagBankMethodData)) {
             return $payment;
         }
 
         $paymentObject = $cart->getPayment();
+
+        // Reset any existing additional information to avoid conflicts
         $paymentObject->unsAdditionalInformation();
 
         switch ($shortCode) {
@@ -127,13 +129,19 @@ class SetPagBankDataPlugin
                 break;
         }
 
-        $this->cartRepository->save($cart);
+        try {
+            // Your existing code for processing payment data
+            $this->cartRepository->save($cart);
+        } catch (\Exception $e) {
+            // Log the error for easier debugging
+            throw $e->getMessage();
+        }
         
         return $payment;
     }
 
     /**
-     * Processa dados específicos do cartão de crédito
+     * Process credit card specific data
      *
      * @param PaymentInterface $payment
      * @param array $ccData
@@ -163,7 +171,7 @@ class SetPagBankDataPlugin
     }
 
     /**
-     * Processa dados específicos do cartão salvo (vault)
+     * Process credit card vault specific data
      *
      * @param PaymentInterface $payment
      * @param array $vaultData
@@ -193,7 +201,7 @@ class SetPagBankDataPlugin
     }
 
     /**
-     * Processa dados comuns do pagador para todos os métodos
+     * Process common payer data for all payment methods
      *
      * @param PaymentInterface $payment
      * @param array $payerData
@@ -201,21 +209,21 @@ class SetPagBankDataPlugin
      */
     private function processPayerData($payment, array $payerData): void
     {
-        if (isset($payerData[self::PAYER_NAME])) {
-            $payment->setAdditionalInformation(self::PAYER_NAME, $payerData[self::PAYER_NAME]);
-        }
+        $payerFields = [
+            self::PAYER_NAME,
+            self::PAYER_TAX_ID,
+            self::PAYER_PHONE
+        ];
         
-        if (isset($payerData[self::PAYER_TAX_ID])) {
-            $payment->setAdditionalInformation(self::PAYER_TAX_ID, $payerData[self::PAYER_TAX_ID]);
-        }
-        
-        if (isset($payerData[self::PAYER_PHONE])) {
-            $payment->setAdditionalInformation(self::PAYER_PHONE, $payerData[self::PAYER_PHONE]);
+        foreach ($payerFields as $field) {
+            if (isset($payerData[$field])) {
+                $payment->setAdditionalInformation($field, $payerData[$field]);
+            }
         }
     }
 
     /**
-     * Verifica se o método é suportado pelo plugin
+     * Check if payment method is supported by this plugin
      *
      * @param string $methodCode
      * @return bool
